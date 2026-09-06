@@ -1,0 +1,8 @@
+{
+  "dotnet.defaultSolution": "Raktabeej.sln",
+  "files.exclude": {
+    "**/.godot": true,
+    "**/bin": true,
+    "**/obj": true
+  }
+}

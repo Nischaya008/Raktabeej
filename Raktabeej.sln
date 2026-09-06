@@ -1,0 +1,34 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RaktabeejCore", "RaktabeejCore\RaktabeejCore.csproj", "{AE6305AE-1076-4397-A725-44DA052EAF6B}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RaktabeejCore.Tests", "RaktabeejCore.Tests\RaktabeejCore.Tests.csproj", "{7EFF22F3-2DCF-455D-9F85-19ADCED59674}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Raktabeej", "game\Raktabeej.csproj", "{CE1B3189-20BF-4A05-80A7-88A2884CF1AA}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{AE6305AE-1076-4397-A725-44DA052EAF6B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{AE6305AE-1076-4397-A725-44DA052EAF6B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{AE6305AE-1076-4397-A725-44DA052EAF6B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{AE6305AE-1076-4397-A725-44DA052EAF6B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{7EFF22F3-2DCF-455D-9F85-19ADCED59674}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{7EFF22F3-2DCF-455D-9F85-19ADCED59674}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{7EFF22F3-2DCF-455D-9F85-19ADCED59674}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{7EFF22F3-2DCF-455D-9F85-19ADCED59674}.Release|Any CPU.Build.0 = Release|Any CPU
+		{CE1B3189-20BF-4A05-80A7-88A2884CF1AA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{CE1B3189-20BF-4A05-80A7-88A2884CF1AA}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{CE1B3189-20BF-4A05-80A7-88A2884CF1AA}.Release|Any CPU.ActiveCfg = Debug|Any CPU
+		{CE1B3189-20BF-4A05-80A7-88A2884CF1AA}.Release|Any CPU.Build.0 = Debug|Any CPU
+	EndGlobalSection
+EndGlobal

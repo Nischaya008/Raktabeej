@@ -1,0 +1,38 @@
+# Godot
+.godot/
+game/.godot/
+*.translation
+
+# .NET
+bin/
+obj/
+*.user
+*.suo
+[Dd]ebug/
+[Rr]elease/
+
+# Builds
+builds/
+*.pck
+*.exe
+*.app/
+*.dmg
+*.zip
+
+# Source assets — NEVER in this repo (see LFS discipline)
+*.blend
+*.blend1
+*.vox
+*.aseprite
+*.kra
+raw_audio/
+
+# macOS
+.DS_Store
+._*
+.Spotlight-V100
+.Trashes
+
+# IDE
+.vs/
+.idea/

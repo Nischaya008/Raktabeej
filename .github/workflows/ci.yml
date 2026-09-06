@@ -1,0 +1,40 @@
+name: ci
+
+on:
+  push:
+    branches: [ main, 'feat/**' ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  core:
+    name: Core build and test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Build core
+        run: dotnet build RaktabeejCore/RaktabeejCore.csproj --configuration Release
+
+      - name: Run core tests
+        run: dotnet test RaktabeejCore.Tests/RaktabeejCore.Tests.csproj --configuration Release --verbosity normal
+
+  naming:
+    name: Enforce lowercase asset paths
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fail on uppercase paths under game/
+        run: |
+          BAD=$(find game -path game/.godot -prune -o -print \
+                | grep -E '/[^/]*[A-Z][^/]*$' \
+                | grep -vE '\.(csproj|sln)$' || true)
+          if [ -n "$BAD" ]; then
+            echo "Uppercase paths found (breaks case-sensitive Linux export):"
+            echo "$BAD"
+            exit 1
+          fi
