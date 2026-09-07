@@ -9,6 +9,19 @@ Rationale lives in `Agent_History.md`. This file answers "what changed", not "wh
 
 ## Unreleased — M0 Literacy & Foundations
 
+### M0-ENV-01 closed at 14/14 (session 006)
+
+- **Verified by the developer:** checklist row #9 — F5 debugger attach, breakpoint hit in
+  `game/src/Main.cs` `_Ready()`. It was the last open row, so **M0-ENV-01 is complete at 14
+  of 14** and the 🔴 gate feature is cleared
+- **M0-ENV-01 through M0-ENV-05 are all Done. M0 stands at 5 of 10 features**
+- `docs/Milestones.md`: tracking board M0 Done 4 → 5, Gate M0's Appendix A row ticked, and the
+  status footer rewritten — it still claimed "13 of 14" and "Blocked on: checklist row #9",
+  both false once row #9 passed
+- Deleted the two squash-merged branches, local and remote: `chore/m0-foundation-hardening`
+  (content landed identically as `3f92697` — verified by an empty `git diff fffc692 3f92697`)
+  and `docs/m0-decisions-d17-d20` (was at `a099651`, i.e. `main` itself)
+
 ### Foundation audit and hardening (session 004) — closes M0-ENV-03/04/05
 
 - **Moved `Plan.md` and `Milestones.md` into `docs/`** — every steering file and both
@@ -50,7 +63,7 @@ Rationale lives in `Agent_History.md`. This file answers "what changed", not "wh
 - Corrected the repository-visibility claim in three documents: it is **public**, not private.
   The visibility decision itself is logged as open — nothing was changed on GitHub
 
-### M0-ENV-01 — Provision the macOS development toolchain — **IN PROGRESS**
+### M0-ENV-01 — Provision the macOS development toolchain — **DONE**
 
 - Installed Xcode Command Line Tools, Homebrew (`/opt/homebrew`, added to `~/.zprofile`)
 - Installed Godot **4.7.2.stable.mono.official** to `/Applications`; exported `GODOT4` and
@@ -65,7 +78,8 @@ Rationale lives in `Agent_History.md`. This file answers "what changed", not "wh
 - **Verified:** C# `_Ready()` executes in-engine (`hello` printed)
 - **Verified (session 004):** `dotnet test` passes; .NET SDK is 8.0.424 arm64
 - **Verified (session 004):** first push landed (`42f1e09`) and both CI jobs are green
-- ⛔ **Outstanding:** checklist row #9 — F5 debugger attach. 13 of 14 rows green
+- **Verified (session 006, by the developer):** checklist row #9 — F5 debugger attach hits a
+  breakpoint in `Main.cs` `_Ready()`. **14 of 14 rows green; feature complete**
 
 ### M0-ENV-02 — Establish the repository and asset discipline — **IN PROGRESS**
 

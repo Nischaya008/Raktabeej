@@ -45,12 +45,14 @@ private until session 004. Unresolved; see the open questions below.
 
 ### Current position
 
-- **Active milestone:** M0 — Literacy & Foundations (4 of **10** features done; was 12 before D-18)
-- **Active feature:** M0-ENV-01 (Provision the macOS development toolchain) — 13 of 14 rows green
-- **Blocked on:** Verification checklist row #9 — F5 debugger attach in VS Code. Manual step; only a human can press F5
-- **Done:** M0-ENV-02, M0-ENV-03, M0-ENV-04, M0-ENV-05 — merged as `3f92697`, CI green
+- **Active milestone:** M0 — Literacy & Foundations (**5 of 10** features done; was 12 before D-18)
+- **Active feature:** none. M0-DBG-01 is next; its Feature Card is written and awaiting approval
+- **Blocked on:** nothing
+- **Done:** M0-ENV-01 (all **14 of 14** Appendix A rows — row #9, F5 debugger attach, confirmed by
+  the developer in session 006), plus M0-ENV-02/03/04/05 — merged as `3f92697`, CI green
 - **Not started:** M0-ENV-06 (Windows verification target), M0-LRN-04/05, M0-DBG-01/02
-- **Next up:** M0-DBG-01 (debug menu) is the first real code feature and the first demoable one
+- **Next up:** M0-DBG-01 (debug menu) is the first real code feature, the first demoable one, and
+  the first subject to DoD #7 (a 10–30 s clip in `docs/demos/`)
 - **Resolved in session 005:** repo visibility (D-17), M0-LRN (D-18), Windows driver (D-19),
   macOS in v1.0 (D-20).
 - **Open question:** does **Steam Deck** stay a v1.0 launch platform? `Plan.md` §22.1 says yes,

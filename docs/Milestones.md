@@ -297,7 +297,8 @@ The debug menu is infrastructure, not a luxury. Every later milestone assumes yo
 
 ### 🚦 Gate M0
 
-- [ ] All 14 Appendix A checklist rows green
+- [x] All 14 Appendix A checklist rows green — closed in session 006 when row #9 (F5 debugger
+      attach) passed
 - [ ] Guided editor-literacy pass complete (M0-LRN-05) — you can drive the Godot editor unaided
 - [ ] `docs/LEARNINGS.md` started and being appended
 - [ ] Debug menu working in an exported build
@@ -755,7 +756,7 @@ Update at the end of every session.
 
 | Milestone | Features | Done | Sessions est. | Sessions actual | Status |
 |---|---|---|---|---|---|
-| M0 Literacy | 10 | 4 | 15 | ~5 | 🟨 In progress |
+| M0 Literacy | 10 | 5 | 15 | ~5 | 🟨 In progress |
 | M1 Feel | 21 | 0 | 35 | 0 | ⬜ |
 | M2 Predation | 14 | 0 | 42 | 0 | ⬜ |
 | M3 The Hook ⚠️ | 20 | 0 | 56 | 0 | ⬜ |
@@ -764,14 +765,14 @@ Update at the end of every session.
 | M6 The Story | 17 | 0 | 42 | 0 | ⬜ |
 | M7 Shipping | 8 | 0 | 28 | 0 | ⬜ |
 | M8 Launch | 7 | 0 | 16 | 0 | ⬜ |
-| **Total** | **139** | **4** | **332** | **~5** | |
+| **Total** | **139** | **5** | **332** | **~5** | |
 
 Sessions actual for M0 is approximate — sessions 002–004 mixed design authoring with
 environment work. Track it precisely from M1, where the velocity rescale depends on it.
 
-**Done:** M0-ENV-02, M0-ENV-03, M0-ENV-04, M0-ENV-05 — merged as `3f92697`, CI green
-**Active feature:** M0-ENV-01 — 13 of 14 Appendix A checklist rows green
-**Blocked on:** checklist row #9 (F5 debugger attach) — requires a manual F5 in VS Code
+**Done:** M0-ENV-01 (all 14 Appendix A rows green), M0-ENV-02, M0-ENV-03, M0-ENV-04, M0-ENV-05
+**Active feature:** none — M0-DBG-01 is next and its Feature Card is awaiting approval
+**Blocked on:** nothing
 **Next:** M0-DBG-01 (debug menu — first real code feature, first demoable one) → M0-LRN-05 → M0-ENV-06
 **Last demo recorded:** _none_ — M0-ENV work is not filmable; M0-DBG-01 is the first feature with a demo artifact
 
