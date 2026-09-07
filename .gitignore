@@ -4,14 +4,16 @@ game/.godot/
 *.translation
 
 # .NET
+# Do not add [Dd]ebug/ or [Rr]elease/ here: bin/ and obj/ already cover build
+# output, and those patterns would silently swallow source folders such as
+# game/src/debug/.
 bin/
 obj/
 *.user
 *.suo
-[Dd]ebug/
-[Rr]elease/
 
-# Builds
+# Builds and tool output (build/ holds local code-review reports)
+build/
 builds/
 *.pck
 *.exe

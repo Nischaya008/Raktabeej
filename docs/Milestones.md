@@ -1,338 +1,50 @@
-Let me verify the two install details I'd otherwise be guessing at — the Godot .NET download naming and gdUnit4's current C# install path.Two corrections to Plan.md first, both from checking current tooling — they simplify your day one:
-
-**gdUnit4 changed significantly.** gdUnit4Net v5+ is now VSTest-compatible and installs as NuGet packages (`gdUnit4.api`, `gdUnit4.test.adapter`), runs through plain `dotnet test`, and only spins up the Godot runtime for tests marked `[RequireGodotRuntime]`. But its published support badges list Godot 4.3–4.4.1, not 4.5. So: **use xUnit only on day one** (zero Godot coupling, zero version risk) and add gdUnit4Net at M1 when you actually need to test the camera rig, pinning your Godot version to whatever it supports then.
-
-**Don't put Godot export into CI on day one.** It needs the headless binary plus matching export templates downloaded in the runner — a genuine rabbit hole. Start CI as build-core + run-tests. Add the export job at M1.
-
----
-
-# Part 1 — Windows bootstrap, step by step
-
-## Step 0: Pre-flight (do this before installing anything)
-
-Three Windows-specific traps that will cost you days if you hit them later.
-
-**Put the project outside OneDrive.** If your repo lives under a OneDrive-synced `Documents`, OneDrive will lock files mid-build and corrupt `.godot/` caches. Use `C:\dev\raktabeej`.
-
-**Enable long paths.** Godot's `.godot/mono` paths plus NuGet nesting will exceed 260 characters. In an **Administrator** PowerShell:
-
-```powershell
-New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem" `
-  -Name "LongPathsEnabled" -Value 1 -PropertyType DWORD -Force
-```
-
-**Add Defender exclusions for your dev folder.** Real-time scanning of MSBuild output makes builds 2–3× slower. Admin PowerShell:
-
-```powershell
-Add-MpPreference -ExclusionPath "C:\dev"
-Add-MpPreference -ExclusionProcess "dotnet.exe"
-Add-MpPreference -ExclusionProcess "MSBuild.exe"
-```
-
-That does reduce your scanning coverage on `C:\dev` — reasonable on a dev box you control, but it is a deliberate security tradeoff, not a free win. Skip it if you'd rather not.
-
-Also: confirm you have **16 GB RAM** and **~60 GB free disk**, and update your NVIDIA driver before installing Godot. Vulkan issues on stale drivers are the single most common "Godot won't start" cause.
-
-## Step 1: Install the toolchain
-
-```powershell
-winget install --id Git.Git -e
-winget install --id Microsoft.DotNet.SDK.8 -e
-winget install --id Microsoft.VisualStudioCode -e
-```
-
-.NET **8 LTS** is the right choice — Godot 4.5 needs 8 or later, and .NET 9 is only required for Android export, which is post-1.0. Skip Blender and the art tools for now; you don't need them until M1 Task 7, and installing eleven programs on day one is how motivation dies before code exists.
-
-If any package ID fails, find it with `winget search <name>` rather than guessing.
-
-## Step 2: Install Godot .NET
-
-Godot isn't reliably packaged on winget, and you need the **.NET build specifically** — the standard build cannot run C# at all.
-
-1. Go to `godotengine.org/download/windows`
-2. Download **Godot Engine – .NET** (not the plain version)
-3. Extract to `C:\dev\tools\godot\`
-4. Rename the executable to `godot.exe`
-5. Add `C:\dev\tools\godot` to your user PATH
-6. Set a `GODOT4` environment variable to `C:\dev\tools\godot\godot.exe` — the VS Code debug config uses it
-
-## Step 3: Verify before proceeding
-
-```powershell
-dotnet --version    # expect 8.0.x
-git --version
-godot --version     # must say "mono" or ".NET" in the string
-```
-
-If `godot --version` doesn't mention mono/.NET, you downloaded the wrong build. Stop and fix it — everything downstream depends on this.
-
-## Step 4: Configure Git
-
-```powershell
-git config --global user.name "Your Name"
-git config --global user.email "you@example.com"
-git config --global init.defaultBranch main
-git config --global core.autocrlf false
-git config --global core.longpaths true
-git lfs install
-```
-
-`core.autocrlf false` matters: combined with the `.gitattributes` below it keeps line endings LF everywhere, so the repo stays sane if you ever touch it from the Mac or a Linux CI runner.
-
-## Step 5: Pick your repo host now
-
-Per Plan.md §23.3, GitHub's free LFS quota is 1 GB storage / 1 GB monthly bandwidth, which a 3D project burns through in weeks.
-
-**Recommended: Azure DevOps** — free unlimited private repos, no separate LFS billing. Create an organization and project at `dev.azure.com`, then use its repo as `origin`. Keep a GitHub mirror later if you want Actions CI (you can push to both).
-
-**Alternative:** GitHub with the lean-repo discipline — source assets (`.blend`, raw `.wav`) live in separate cloud storage, only exported game-ready files (`.glb`, `.ogg`, `.png`) go in the repo.
-
-Decide today. Migrating LFS history later is genuinely painful.
-
-## Step 6: Scaffold the solution
-
-```powershell
-cd C:\dev
-mkdir raktabeej
-cd raktabeej
-git init
-
-dotnet new sln -n Raktabeej
-dotnet new classlib -o RaktabeejCore -f net8.0
-dotnet new xunit -o RaktabeejCore.Tests -f net8.0
-dotnet sln add RaktabeejCore RaktabeejCore.Tests
-dotnet add RaktabeejCore.Tests reference RaktabeejCore
-
-mkdir game, docs, tools, .github\workflows
-
-dotnet test
-```
-
-`dotnet test` must pass with the template's placeholder test before you continue. That's your first green build.
-
-## Step 7: Add the two Git config files
-
-**`.gitattributes`** — the `.tres` / `.tscn` lines are important, they keep your content diffable:
-
-```gitattributes
-* text=auto eol=lf
-
-*.cs      text diff=csharp
-*.tres    text
-*.tscn    text
-*.godot   text
-*.gd      text
-*.md      text
-
-*.png  filter=lfs diff=lfs merge=lfs -text
-*.jpg  filter=lfs diff=lfs merge=lfs -text
-*.exr  filter=lfs diff=lfs merge=lfs -text
-*.hdr  filter=lfs diff=lfs merge=lfs -text
-*.glb  filter=lfs diff=lfs merge=lfs -text
-*.gltf filter=lfs diff=lfs merge=lfs -text
-*.blend filter=lfs diff=lfs merge=lfs -text
-*.wav  filter=lfs diff=lfs merge=lfs -text
-*.ogg  filter=lfs diff=lfs merge=lfs -text
-*.ttf  filter=lfs diff=lfs merge=lfs -text
-```
-
-**`.gitignore`**:
-
-```gitignore
-# Godot
-.godot/
-game/.godot/
-*.translation
-
-# .NET
-bin/
-obj/
-*.user
-*.suo
-[Dd]ebug/
-[Rr]elease/
-
-# Builds
-builds/
-*.pck
-*.exe
-
-# OS
-Thumbs.db
-.DS_Store
-```
-
-Note on `export_presets.cfg`: **commit it** (CI needs it), but never put an Android keystore password in it — those go in environment variables. Desktop presets contain no secrets.
-
-## Step 8: Create the Godot project and link the core library
-
-1. Launch Godot .NET → **New Project** → path `C:\dev\raktabeej\game` → renderer **Forward+**
-2. In the editor, attach a C# script to any node. This is what generates `game/Raktabeej.csproj`. Nothing C#-related works until you do it once.
-3. Back in the terminal:
-
-```powershell
-dotnet sln add game\Raktabeej.csproj
-dotnet add game\Raktabeej.csproj reference RaktabeejCore
-dotnet build
-```
-
-Now your Godot project can call into `RaktabeejCore`, and one root solution holds all three projects. Godot won't clobber the reference — it only regenerates the csproj if it's missing.
-
-4. In Godot: **Project Settings → Physics → 3D → Physics Engine → Jolt Physics**, then Save & Restart. (New 4.4+ projects default to Jolt, but verify — it's the one setting you don't want wrong at month six.)
-
-## Step 9: Configure VS Code
-
-Install extensions: **C# Dev Kit**, **godot-tools**, **EditorConfig for VS Code**.
-
-In godot-tools settings, set the editor path to `C:\dev\tools\godot\godot.exe`.
-
-Create `.vscode/launch.json`:
-
-```json
-{
-  "version": "0.2.0",
-  "configurations": [
-    {
-      "name": "Play",
-      "type": "coreclr",
-      "request": "launch",
-      "preLaunchTask": "build",
-      "program": "${env:GODOT4}",
-      "args": ["--path", "${workspaceFolder}/game"],
-      "cwd": "${workspaceFolder}",
-      "stopAtEntry": false
-    }
-  ]
-}
-```
-
-And `.vscode/tasks.json`:
-
-```json
-{
-  "version": "2.0.0",
-  "tasks": [
-    {
-      "label": "build",
-      "command": "dotnet",
-      "type": "process",
-      "args": ["build"],
-      "problemMatcher": "$msCompile"
-    }
-  ]
-}
-```
-
-F5 now launches the game with C# breakpoints working. Verify that before moving on — debugging is the difference between vibe-coding that converges and vibe-coding that flails.
-
-## Step 10: Minimal CI
-
-`.github/workflows/ci.yml` (or the Azure Pipelines equivalent):
-
-```yaml
-name: ci
-on: [push, pull_request]
-
-jobs:
-  core:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: '8.0.x'
-      - run: dotnet build RaktabeejCore/RaktabeejCore.csproj
-      - run: dotnet test RaktabeejCore.Tests/RaktabeejCore.Tests.csproj --verbosity normal
-```
-
-Note it builds only the core projects, not `game/` — the Godot csproj needs the engine's SDK present, which the runner doesn't have yet. Add the Godot job at M1.
-
-## Step 11: Set up the vibe-coding harness
-
-This is the step people skip and then wonder why the agent drifts.
-
-```powershell
-mkdir .kiro\steering
-```
-
-Move your two planning documents into the repo:
-
-```
-docs/Plan.md          ← from your Mac; this is the constitution
-docs/Milestones.md    ← from Part 2 below; this is the schedule
-Agent_History.md      ← running log, newest entry on top
-Changes.md            ← what changed and why, per session
-```
-
-Then create three always-loaded steering files. Keep them short — steering that's too long gets diluted:
-
-**`.kiro/steering/product.md`** — the six design pillars verbatim from Plan.md §2, plus a hard statement of what is out of scope for the current milestone.
-
-**`.kiro/steering/tech.md`** — the stack, and these non-negotiables:
-- `RaktabeejCore` must never reference Godot. If a change needs a Godot type in core, the design is wrong.
-- Every core rule ships with xUnit tests in the same commit.
-- All content is a `[GlobalClass] Resource` in `game/data/`, never hardcoded.
-- All file and folder names are `lowercase_snake_case` (Linux export is case-sensitive).
-- `dotnet build` and `dotnet test` must pass before any commit.
-
-**`.kiro/steering/structure.md`** — the folder map from Plan.md §21.3.
-
-## Step 12: First commit and smoke test
-
-```powershell
-godot --headless --path game --quit
-echo $LASTEXITCODE        # must be 0
-
-git add .
-git commit -m "chore: Scaffold Godot .NET project and core library"
-git remote add origin <your-repo-url>
-git push -u origin main
-```
-
-## Verification checklist
-
-Do not start M0 Task 2 until every row is true:
-
-| Check | Command / action | Expected |
-|---|---|---|
-| .NET SDK | `dotnet --version` | `8.0.x` |
-| Godot is the .NET build | `godot --version` | contains `mono` |
-| Core builds | `dotnet build` | 0 errors |
-| Tests run | `dotnet test` | 1+ passing |
-| Godot opens headless | `godot --headless --path game --quit` | exit code 0 |
-| F5 debugging | VS Code F5, breakpoint in `_Ready()` | breakpoint hits |
-| Jolt active | Project Settings → Physics → 3D | Jolt Physics |
-| Repo pushed | `git log --oneline -1` on remote | your commit |
-| CI green | Push and check | ✅ |
-| Not in OneDrive | Path is `C:\dev\...` | ✅ |
-
----
-
-# Part 2 — Milestones.md
-
-Paste this into `/Users/gargnisc/Downloads/Career/Projects/DEV/Milestones.md`, then move it to `docs/Milestones.md` in the Windows repo.
-
-I've used FDD adapted for solo work: FDD's real value here is the *feature list as the unit of planning and tracking*, with a strict "each feature is client-valued and demoable" rule. What I've dropped is FDD's team apparatus (chief programmers, feature teams, class ownership) since it's meaningless for one person. The estimating unit is a **session** — one focused ~3-hour block — because that's the honest unit for part-time solo work, and it makes slippage visible within a week instead of within a quarter.
-
-````markdown
 # RAKTABEEJ — Milestone & Feature Delivery Plan
 
 > **Companion to `docs/Plan.md`.**
 > Plan.md is the **constitution** — what the game is and why. It changes rarely and deliberately.
 > This document is the **schedule** — what gets built, in what order, and how you know it's done. It changes weekly.
 >
-> **Status:** v1.0
+> **Status:** v1.1
 > **Delivery model:** Feature-Driven Development, adapted for solo AI-assisted work
 > **Estimating unit:** 1 session = one focused ~3-hour block
-> **Assumed capacity:** 7 sessions/week (~21 h) → ~336 sessions to Early Access
+> **Assumed capacity:** 7 sessions/week (~21 h) → ~338 sessions to Early Access
 > **Target:** Early Access, Windows + Steam Deck, week 48
+> **Repository:** `github.com/Nischaya008/Raktabeej` — **currently public** (verified session 004; the docs had said private). Decision pending
+
+---
+
+## Environment
+
+| Role | Machine | Purpose |
+|---|---|---|
+| **Primary development** | MacBook Pro 16" M4 Pro, 48 GB, macOS Tahoe | All authoring, coding, art, iteration. Godot runs on the native **Metal** driver. |
+| **Verification target** | Windows desktop, AMD CPU + NVIDIA RTX | Every gate build runs here. Vulkan/D3D12 parity, performance profiling against a median-Steam-spec GPU, release exports. |
+
+**Rule:** develop on the Mac, **profile and gate on Windows**. The M4 Pro is fast enough to hide budget overruns; the RTX box is the honest number. Full setup in **Appendix A**.
+
+---
+
+## Table of Contents
+
+0. [How to Use This Document](#0-how-to-use-this-document)
+1. [Delivery Model](#1-delivery-model)
+2. [Ground Rules & Definition of Done](#2-ground-rules--definition-of-done)
+3. [Feature Card Template](#3-feature-card-template)
+4. [Vibe-Coding Protocol](#4-vibe-coding-protocol)
+5. [Milestones M0–M8](#5-milestones)
+6. [Cadence](#6-cadence)
+7. [Tracking Board](#7-tracking-board)
+8. [Cut Triggers](#8-cut-triggers)
+9. [Risk Register](#9-risk-register)
+10. [Prompt Seed Library](#10-prompt-seed-library)
+11. [Appendix A — Environment Setup](#appendix-a--environment-setup)
 
 ---
 
 ## 0. How to Use This Document
 
 1. **Never work without an active Feature Card.** Pick the next feature from the current milestone table, write its card (§3), work it, demo it, commit it, tick it off.
-2. **One feature = one branch = one commit = one demo.** If a feature can't be demoed, it isn't a feature — it's a task hiding inside one. Merge it into its parent.
+2. **One feature = one branch = one demo.** If a feature can't be demoed, it isn't a feature — it's a task hiding inside one. Merge it into its parent.
 3. **Gates are hard stops.** A gate is not a checkpoint you note and pass. If a gate fails, you stop and fix or stop and rethink. The M3 gate can end the project; that is its job.
 4. **Update the tracking board (§7) at the end of every session.** Two minutes. It is the only defence against the month-eight realisation that you're twelve weeks behind.
 5. **When this document and Plan.md disagree, Plan.md wins** — unless you deliberately amend Plan.md and note it in `Changes.md`.
@@ -343,22 +55,20 @@ I've used FDD adapted for solo work: FDD's real value here is the *feature list 
 
 ### Why FDD
 
-FDD fits this project for three reasons:
-
-- **Features are client-valued and demoable.** For a solo dev with no team to hold them accountable, a demoable increment every 1–3 sessions is the only reliable motivation engine. You always have something to show.
-- **It front-loads the domain model.** Plan.md *is* the overall model (FDD process #1). The `RaktabeejCore` library is that model made executable. This is exactly FDD's shape.
+- **Features are client-valued and demoable.** For a solo dev with nobody to hold them accountable, a demoable increment every 1–3 sessions is the only reliable motivation engine.
+- **It front-loads the domain model.** Plan.md *is* the overall model (FDD process #1). `RaktabeejCore` is that model made executable.
 - **It plans by feature, not by layer.** You will never spend six weeks building "the UI system" with nothing playable. Every feature cuts vertically through core → engine → UI.
 
 ### What is deliberately dropped
 
-Chief programmers, feature teams, class ownership, and inspections. Irrelevant for one person. Their function — independent review — is replaced by the **agent/reviewer separation** in §4.
+Chief programmers, feature teams, class ownership, formal inspections. Irrelevant for one person. Their function — independent review — is replaced by the agent/reviewer separation in §4.4.
 
 ### Hierarchy
 
 ```
 Major Feature Set   = Milestone (M0–M8)
   Feature Set       = a coherent subsystem within the milestone
-    Feature         = 1–3 sessions, demoable, ID'd, tracked
+    Feature         = 1–6 sessions, demoable, ID'd, tracked
 ```
 
 ### Feature ID scheme
@@ -376,28 +86,31 @@ M4-SUN-02
 
 ### Definition of Done — every feature
 
-A feature is Done only when **all nine** are true. No partial credit.
+A feature is Done only when **all ten** are true. No partial credit.
 
 1. `dotnet build` passes with **zero warnings** in `RaktabeejCore` (warnings-as-errors on core only).
 2. `dotnet test` passes. New core logic has xUnit tests **in the same commit**.
 3. The feature is reachable in a running build without a debugger attached.
-4. It is exercisable from the **debug menu** (set the state, trigger the effect).
+4. It is exercisable from the **debug menu** — you can set the state and trigger the effect on demand.
 5. No `TODO`, no `NotImplementedException`, no commented-out code, no stub returning a fixed value.
 6. Frame time still inside budget (Plan.md §21.8). Check the overlay, don't assume.
-7. A **demo artifact** exists: a 10–30 s GIF or clip in `docs/demos/<feature-id>.gif`.
-8. Committed on a feature branch, squashed to **1–2 commits**, merged to `main`.
+7. A **demo artifact** exists: a 10–30 s clip in `docs/demos/<feature-id>.mp4`.
+8. Committed on a feature branch, squashed to **1–2 commits**, merged to `main`, CI green.
 9. `Changes.md` has a one-line entry. Tracking board updated.
+10. **If the feature touches rendering, shaders, physics, or performance: verified running correctly on the Windows target**, not only on the Mac.
 
 ### Core architecture rules — non-negotiable
 
 - `RaktabeejCore` **never** references Godot. If you think it must, the design is wrong.
 - Game rules live in core. Godot nodes only read core state and render it.
 - All content is a `[GlobalClass] Resource` in `game/data/`. Nothing balance-related is hardcoded in C#.
-- All filenames `lowercase_snake_case`. Linux export is case-sensitive; Windows will not warn you.
-- Save serialization is POCO + `System.Text.Json`. Never serialize a Godot node.
+- Asset and resource paths under `game/` are `lowercase_snake_case` — directories, scenes, `.tres`, art, audio, shaders. They load via hand-written `res://` strings, and macOS and Windows won't warn you; the Linux/Steam Deck export will fail. **CI enforces this.**
+- **C# script files under `game/` are `PascalCase.cs`, and the class name must match the file name exactly** (decision D-16). Godot resolves scripts by that match, case-sensitively, and a mismatch fails at *runtime*, not at build time. CI exempts only the *filename*, and only for `.cs`, `.cs.uid`, `.csproj`, `.sln`; **directory segments are never exempt**, so `game/src/Autoload/GameClock.cs` still fails the guard on its `Autoload/` segment.
+- Save serialization is POCO + `System.Text.Json` with a `SchemaVersion`. Never serialize a Godot node.
 
-### Content rules
+### Content and asset rules
 
+- **Source assets never enter this repo.** `.blend`, `.vox`, `.aseprite`, raw `.wav` live in `~/dev/raktabeej-assets/`, backed up separately. Only exported game-ready files (`.glb`, `.ogg`, `.png`) are committed. This is what keeps you inside GitHub's free 1 GB LFS quota.
 - Every third-party asset is logged in `docs/ASSET_LICENSES.md` **in the commit that adds it**. No exceptions, ever.
 - All player-facing strings go through the localization CSV from M1 onward. Never concatenate translated strings.
 - Every visual effect gets its photosensitivity-safe variant **in the same feature**, not in a later accessibility pass.
@@ -406,15 +119,15 @@ A feature is Done only when **all nine** are true. No partial credit.
 
 ## 3. Feature Card Template
 
-Write this before you write code. It takes four minutes and it is what makes the agent useful instead of chaotic.
+Write this before you write code. Four minutes, and it is what makes the agent useful instead of chaotic.
 
 ```markdown
-## Feature Card — M4-SUN-02
+## Feature Card — M4-SUN-03
 
 **Feature:** Project the moving shadow map for the Sun Map overlay
-**Feature Set:** M4-SUN (Sunlight & Sun Map)
+**Feature Set:** M4-SUN (Time and sunlight)
 **Plan.md reference:** §10.1, §21.5
-**Estimate:** 2 sessions
+**Estimate:** 4 sessions
 
 ### Client value
 The player can plan a dawn route through narrowing shadow corridors and survive
@@ -428,26 +141,27 @@ sunrise by reading the map instead of by memorisation.
 ### Scope — OUT (do not build)
 - Fast travel
 - Route auto-planning or pathfinding hints
-- Weather effects on the projection (that is M4-WTH-01)
+- Weather effects on the projection
 
 ### Core changes (RaktabeejCore)
-- `SunExposure.GetSafetyAt(Vector3Like, GameTime)` — pure, testable
+- `SunExposure.GetSafetyAt(WorldPoint, GameTime)` — pure, testable
 
 ### Engine changes (game/)
-- `World/SunMap.cs` — reads core, renders overlay
-- `Ui/SunMapScreen.tscn`
+- `world/sun_map.cs` — reads core, renders overlay
+- `scenes/ui/sun_map_screen.tscn`
 
 ### Tests
 - xUnit: exposure state correct for 20 parameterized positions × 6 times of day
-- xUnit: projection is deterministic for a given clock value
+- xUnit: projection deterministic for a given clock value
 - Manual: overlay-reported safe zone matches actual runtime damage at 5 spots
+- Windows: overlay renders identically under the Windows backend (currently D3D12)
 
 ### Demo
 Stand in the open at 05:20, open the Sun Map, walk the shadow corridor home,
-arrive at 05:38 alive. Record the clip.
+arrive at 05:38 alive.
 
 ### Done when
-All nine DoD conditions met.
+All ten DoD conditions met.
 ```
 
 ---
@@ -456,64 +170,61 @@ All nine DoD conditions met.
 
 Full AI-assisted development works on a project this size **only** with a verification harness. Without one it produces four months of plausible code that doesn't hold together. These rules are that harness.
 
-### 4.1 The document hierarchy
+### 4.1 Document hierarchy
 
 | Document | Role | Change frequency |
 |---|---|---|
 | `docs/Plan.md` | Constitution. What the game is. | Rarely, deliberately |
 | `docs/Milestones.md` | Schedule. This file. | Weekly |
 | Feature Card | Work order. One at a time. | Per feature |
-| `.kiro/steering/*.md` | Standing constraints the agent always loads | Rarely |
-| `Changes.md` | What changed, one line per feature | Per feature |
+| `.kiro/steering/*.md` | Standing constraints, always loaded | Rarely |
+| `Changes.md` | One line per completed feature | Per feature |
 | `Agent_History.md` | Decisions and rationale, newest on top | Per session |
 
 ### 4.2 The session loop
 
-Every session, without deviation:
-
-1. **Orient (5 min).** Read the tracking board and the top of `Agent_History.md`. Confirm which feature is active.
-2. **Card (5 min).** If starting a new feature, write its card. If you cannot write the OUT-of-scope list, you do not understand the feature yet.
-3. **Branch.** `git checkout -b feat/m4-sun-02`
-4. **Core first.** Have the agent implement the core logic + tests. Run `dotnet test`. This step is fully verifiable — the tests either pass or they don't. Do not proceed while red.
-5. **Engine second.** Wire it into Godot. Verify by playing, not by reading code.
+1. **Orient (5 min).** Read the tracking board and the top of `Agent_History.md`. Confirm the active feature.
+2. **Card (5 min).** If starting a new feature, write its card. **If you cannot write the OUT list, you do not understand the feature yet.**
+3. **Branch.** `git checkout -b feat/m4-sun-03`
+4. **Core first.** Agent implements core logic + tests. Run `dotnet test`. Fully verifiable — do not proceed while red.
+5. **Engine second.** Wire into Godot. Verify by playing, not by reading code.
 6. **Debug hook.** Add the debug-menu command for this feature.
-7. **Demo.** Record the clip. If you cannot produce a compelling 15 seconds, the feature is not done.
-8. **Review.** Run your reviewer pass on the diff (§4.4).
-9. **Land.** Squash, merge, update `Changes.md`, `Agent_History.md`, and the board.
+7. **Demo.** Record the clip. If you cannot produce a compelling 15 seconds, it isn't done.
+8. **Review.** Reviewer pass on the diff (§4.4).
+9. **Land.** Squash, merge, CI green, update `Changes.md`, `Agent_History.md`, board.
 
-**One feature per session block.** If a feature needs three sessions, it stays on its branch across them — but every session still ends on a green build.
+**One feature per session block.** A multi-session feature stays on its branch — but every session still ends on a green build.
 
 ### 4.3 The agent contract
 
-Put this in `.kiro/steering/tech.md` so it loads every time:
+Lives in `.kiro/steering/tech.md` so it loads every time:
 
 ```
 - Read docs/Plan.md and the active Feature Card before writing code.
 - Implement ONLY what the Feature Card's IN scope lists. If the work seems to
-  require something in the OUT list, stop and say so. Do not build it.
+  require something on the OUT list, stop and say so. Do not build it.
 - RaktabeejCore must never reference Godot.
 - Every core rule change ships with xUnit tests in the same commit.
-- Run `dotnet build` and `dotnet test` and report the actual output before
+- Run `dotnet build` and `dotnet test` and report the ACTUAL output before
   claiming a feature works. Never claim a passing build you did not run.
 - Never delete, skip, or weaken an existing test to make a build green.
-- Never leave a stub, TODO, or NotImplementedException in a feature you report
-  as complete.
+- Never leave a stub, TODO, or NotImplementedException in work reported complete.
 - Balance numbers belong in .tres resources, not in C#.
 ```
 
 ### 4.4 Independent review
 
-You are the only gate on the agent's work, so scrutinise it. Never accept a "done" claim at face value.
+You are the only gate on the agent's work. Never accept a "done" claim at face value.
 
-For every feature, before merging:
+Before merging any feature:
 
 - **Read the diff yourself.** Every file. Not the summary.
-- **Confirm the tests are real.** A test that asserts the implementation rather than the requirement is worse than no test. Ask: would this test fail if the feature were wrong?
-- **Hunt the four failure modes:** silent stubs; tests deleted or weakened to go green; scope creep beyond the card; results reported but never actually run.
-- **Run a separate reviewer session** on non-trivial diffs. A reviewer must never be the same session that wrote the code.
-- **Check the pillars.** Does this feature serve one of the six in Plan.md §2? If not, why does it exist?
+- **Confirm the tests are real.** Would this test fail if the feature were wrong? A test that asserts the implementation rather than the requirement is worse than no test.
+- **Hunt the four failure modes:** silent stubs; tests deleted or weakened to go green; scope creep past the card; results reported but never actually run.
+- **Run a separate reviewer session** on non-trivial diffs. A reviewer must never be the session that wrote the code.
+- **Check the pillars.** Does this serve one of the six in Plan.md §2? If not, why does it exist?
 
-### 4.5 Where the agent excels vs where you must drive
+### 4.5 Delegate vs drive
 
 | Delegate freely | Drive yourself |
 |---|---|
@@ -530,30 +241,29 @@ For every feature, before merging:
 
 ## 5. Milestones
 
-### Legend
-
-- **Est.** = sessions (~3 h each)
-- 🔴 = gate feature; the milestone cannot exit without it
-- ⚠️ = high risk; schedule it early in the milestone, not late
+**Legend:** **Est.** = sessions (~3 h) · 🔴 = gate feature, milestone cannot exit without it · ⚠️ = high risk, schedule early
 
 ---
 
 ## M0 — Literacy & Foundations
 
-> **Weeks 1–3 · 21 sessions**
-> **Goal:** You can build, run, test, debug, and ship a Godot C# project, and you know the engine well enough that the real project isn't your teaching sandbox.
+> **Weeks 1–3 · 23 sessions**
+> **Goal:** You can build, run, test, debug, and ship a Godot C# project on both machines, and you know the engine well enough that the real project isn't your teaching sandbox.
 
-**Do not skip this milestone.** Learning an engine on your actual project is the single most common way first games die. Three weeks here buys back three months later.
+**Do not skip this milestone.** Learning an engine on your actual project is the most common way first games die. Three weeks here buys back three months later.
 
 ### Feature Set M0-ENV — Environment
 
 | ID | Feature | Done when | Est. |
 |---|---|---|---|
-| M0-ENV-01 🔴 | Provision the Windows toolchain | Every row of the Part 1 verification checklist is green | 2 |
-| M0-ENV-02 🔴 | Establish the repository and LFS host | Repo pushed; LFS host decided and configured; `.gitattributes` + `.gitignore` in place | 1 |
-| M0-ENV-03 | Scaffold the solution and Godot project | Root solution holds core + tests + game; game references core; Jolt enabled | 1 |
-| M0-ENV-04 | Establish continuous integration | Push triggers build + test; badge green | 1 |
-| M0-ENV-05 | Establish the AI harness | `.kiro/steering/` populated; Plan.md and Milestones.md in `docs/`; `Changes.md` and `Agent_History.md` created | 1 |
+| M0-ENV-01 🔴 | Provision the macOS development toolchain | All 14 rows of the Appendix A checklist green — including F5 debugging with a live breakpoint | 2 |
+| M0-ENV-02 🔴 | Establish the repository and asset discipline | Cloned, `.gitattributes` + `.gitignore` in place, LFS initialised, `~/dev/raktabeej-assets/` created, first push green | 1 |
+| M0-ENV-03 | Scaffold the solution and Godot project | Root solution holds core + tests + game; game references core; Jolt enabled; `global.json` pins .NET 8 | 1 |
+| M0-ENV-04 | Establish continuous integration | Push runs core build + tests **and** the lowercase-path guard; both green | 1 |
+| M0-ENV-05 | Establish the AI harness | Three `.kiro/steering/` files written; `Plan.md` and `Milestones.md` in `docs/`; `Changes.md`, `Agent_History.md`, `ASSET_LICENSES.md` created | 1 |
+| M0-ENV-06 🔴 | Establish the Windows verification target | Export templates installed; Windows Desktop preset configured; an exported build launches on the Windows machine; frame-time overlay readable there | 2 |
+
+`M0-ENV-06` is what makes every later gate honest. Without it you will not discover a Metal-versus-Vulkan divergence until M7.
 
 ### Feature Set M0-LRN — Engine literacy
 
@@ -564,28 +274,29 @@ For every feature, before merging:
 | M0-LRN-03 | Ship a complete 3D platformer with follow camera | Jump feel tuned, moving platforms, a camera you wrote yourself | 4 |
 | M0-LRN-04 🔴 | Record the engine learnings | `docs/LEARNINGS.md` covers node lifecycle, signals, `_Process` vs `_PhysicsProcess`, resource loading, the C# struct-copy trap, export gotchas | 1 |
 
-Build these in a throwaway `sandbox/` repo, not this one. **The artifact is your competence, not the code.** Delete them after.
+Build these in a throwaway `~/dev/sandbox/` repo, **not** this one. **The artifact is your competence, not the code.** Delete them after.
 
 ### Feature Set M0-DBG — Debug infrastructure
 
 | ID | Feature | Done when | Est. |
 |---|---|---|---|
-| M0-DBG-01 🔴 | Provide the debug menu and dev overlay | F1 panel with frame-time overlay, free-camera toggle, clock scrubber, extensible command registry; stripped from release exports | 3 |
-| M0-DBG-02 | Provide a frame-time and draw-call overlay | Live ms breakdown and draw-call count against Plan.md §21.8 budgets | 1 |
+| M0-DBG-01 🔴 | Provide the debug menu and dev overlay | F1 panel with frame-time overlay, free-camera toggle, clock scrubber, extensible command registry; compiled out of release exports | 3 |
+| M0-DBG-02 | Provide a frame-time and draw-call overlay | Live ms breakdown and draw-call count against Plan.md §21.8 budgets, readable on both machines | 1 |
 
 The debug menu is infrastructure, not a luxury. Every later milestone assumes you can force any state on demand. Build it now, grow it forever.
 
 ### 🚦 Gate M0
 
-- [ ] All ten verification-checklist rows green
+- [ ] All 14 Appendix A checklist rows green
 - [ ] Three learning games finished and playable end to end
 - [ ] `docs/LEARNINGS.md` written
 - [ ] Debug menu working in an exported build
-- [ ] CI green on a push
-- [ ] **You can answer without looking it up:** how do I load a resource, how do I connect a signal, how do I export a Windows build?
+- [ ] CI green, including the lowercase-path guard
+- [ ] **An exported build runs on the Windows target**
+- [ ] **You can answer without looking it up:** how do I load a resource, how do I connect a signal, how do I export a build?
 
 **Prompt seed:**
-> "Read `docs/Plan.md` §21.9 and `.kiro/steering/tech.md`. Implement feature M0-DBG-01: a debug overlay autoload with an F1-toggled panel, a frame-time readout, and a command registry other systems call `DebugService.Register(name, callback)` on. It must compile out of release exports. Only what the card lists — no game-specific commands yet. Show me the actual `dotnet build` output."
+> "Read `docs/Plan.md` §21.9 and `.kiro/steering/tech.md`. Implement M0-DBG-01: a debug overlay autoload with an F1-toggled panel, a frame-time readout, and a command registry other systems call `DebugService.Register(name, callback)` on. It must compile out of release exports. Only what the card lists — no game-specific commands yet. Show me the actual `dotnet build` output."
 
 ---
 
@@ -603,14 +314,14 @@ The debug menu is infrastructure, not a luxury. Every later milestone assumes yo
 | M1-CAM-01 🔴 | Provide the pitch-locked orbiting camera rig | Rig per Plan.md §6.1; pitch locked −52°; yaw 360° on held RMB / held L2 + right stick; 0.12 s damping | 3 |
 | M1-CAM-02 | Provide interpolated zoom | 5 steps, 9–22 m, smooth, clamped | 1 |
 | M1-CAM-03 | Resolve camera occlusion by dither-fade | Geometry between camera and player fades; camera never moves or clips | 2 |
-| M1-CAM-04 🔴 | Resolve the aim-versus-rotate conflict | While RMB is held, aim freezes at last vector and abilities remain castable in that direction (Plan.md §6.3) | 2 |
+| M1-CAM-04 🔴 | Resolve the aim-versus-rotate conflict | While RMB held, aim freezes at last vector and abilities stay castable in that direction (Plan.md §6.3) | 2 |
 | M1-CAM-05 | Expose camera tuning parameters | All values `[Export]`ed and live-tunable from the debug menu | 1 |
 
 ### Feature Set M1-MOV — Movement
 
 | ID | Feature | Done when | Est. |
 |---|---|---|---|
-| M1-MOV-01 🔴 | Provide camera-relative character movement | Correct at all 360° of yaw; verified by parameterized test at 8 yaw values | 3 |
+| M1-MOV-01 🔴 | Provide camera-relative character movement | Correct at all 360° of yaw; parameterized test at 8 yaw values | 3 |
 | M1-MOV-02 | Provide sprint and crouch | Distinct speeds, animation-ready state machine, no state deadlocks | 1 |
 | M1-MOV-03 🔴 | Provide the dodge with i-frames | Exactly 0.4 s invulnerability, 0.9 s cooldown, no wall-clipping at max speed | 2 |
 | M1-MOV-04 | Provide the input remapping layer | All actions in the input map; nothing reads raw keys; hold-to-toggle option plumbed | 2 |
@@ -623,15 +334,17 @@ The debug menu is infrastructure, not a luxury. Every later milestone assumes yo
 | M1-RND-02 🔴 | Quantize the frame to the fixed palette | 56-colour palette + Bayer 8×8 ordered dither | 3 |
 | M1-RND-03 | Outline silhouettes by edge detection | Depth+normal Roberts cross, 1 px dark outline | 2 |
 | M1-RND-04 | Bloom the neon | Threshold-gated, low radius, does not wash out the palette | 1 |
-| M1-RND-05 🔴 | Render the UI at native resolution | Separate `CanvasLayer` above the viewport; text crisp at 1080p / 1440p / 4K | 2 |
+| M1-RND-05 🔴 | Render the UI at native resolution | Separate `CanvasLayer` above the viewport; text crisp at 1080p / 1440p / the Mac's 3456×2234 | 2 |
 | M1-RND-06 | Author the three sub-palettes | 2070 Sprawl, 1861 Calcutta, Sanguine Sight — each with a colourblind-safe variant | 2 |
-| M1-RND-07 | Verify the pipeline by golden image | Fixed test scene rendered and compared per stage; post chain under 2 ms | 2 |
+| M1-RND-07 🔴 | Verify the pipeline on both backends | Golden-image comparison per stage; post chain under 2 ms; **renders identically on Metal (Mac) and Vulkan/D3D12 (Windows)** | 2 |
+
+`M1-RND-07` is the feature that de-risks the Metal-vs-Vulkan divergence for the whole project. Do not defer it.
 
 ### Feature Set M1-KIT — Modular art kit
 
 | ID | Feature | Done when | Est. |
 |---|---|---|---|
-| M1-KIT-01 | Establish the Blender→glTF→Godot pipeline | Repeatable from clean checkout; export script in `tools/` | 2 |
+| M1-KIT-01 | Establish the Blender→glTF→Godot pipeline | Repeatable from clean checkout; export script in `tools/`; `.blend` sources stay outside the repo | 2 |
 | M1-KIT-02 | Author the first 20 building modules | Wall, floor, roof, stair, balcony, awning, railing, signage on a shared 256² atlas, within poly budget | 3 |
 | M1-KIT-03 🔴 | Assemble the first Stack chunk | One 48×48 m block, baked `LightmapGI`, emissive neon, inside draw-call budget | 3 |
 
@@ -639,21 +352,22 @@ The debug menu is infrastructure, not a luxury. Every later milestone assumes yo
 
 | ID | Feature | Done when | Est. |
 |---|---|---|---|
-| M1-TST-01 | Adopt gdUnit4Net for engine tests | NuGet packages added; Godot version pinned to a supported release; camera tests run under `dotnet test` | 2 |
-| M1-TST-02 | Add the Godot export job to CI | Headless build + Windows export artifact on every push | 2 |
+| M1-TST-01 | Adopt gdUnit4Net for engine tests | NuGet packages added; **Godot version pinned to a gdUnit4Net-supported release**; camera tests run under `dotnet test` | 2 |
+| M1-TST-02 | Add the Godot export job to CI | Headless build + Windows export artifact on every push to `main`. **Also automate the liveness probe:** run `godot --headless --path game --quit` and assert it prints the `_Ready()` probe string, so a broken C#↔Godot binding fails CI instead of surviving until someone reads Appendix A.4 row 8 by hand | 2 |
 
 ### 🚦 Gate M1 — the Feel Gate
 
 - [ ] Camera and movement behave exactly to Plan.md §6 and §7
 - [ ] Pixel pipeline running; UI text crisp
 - [ ] One real-looking neon street block exists
-- [ ] Frame time inside budget with the post chain active
+- [ ] **Renders identically on Metal and on the Windows target**
+- [ ] Frame time inside budget **measured on Windows**, with the post chain active
 - [ ] **The subjective gate: play it for 10 minutes with no objective, no enemies, no content. Is moving around genuinely pleasurable?**
 
 **If the answer is no, stop and fix it.** Do not proceed hoping content will compensate. It will not. Every one of the next 280 sessions sits on top of this.
 
 **Prompt seed:**
-> "Implement M1-CAM-01 per `docs/Plan.md` §6.1–6.2. Build the `CameraPivot → YawGimbal → SpringArm3D → Camera3D` hierarchy. Pitch is locked at −52° and must be unchangeable by input. Yaw rotates 360° continuously while RMB (mouse) or L2+right-stick (pad) is held, at 140°/s mouse-scaled and 180°/s stick. Position damping 0.12 s. Expose every value as `[Export]`. Do NOT implement zoom or occlusion — those are separate features. Write gdUnit4 tests asserting pitch never changes and yaw wraps correctly across the 0/360 boundary."
+> "Implement M1-CAM-01 per `docs/Plan.md` §6.1–6.2. Build the `CameraPivot → YawGimbal → SpringArm3D → Camera3D` hierarchy. Pitch is locked at −52° and must be unchangeable by input. Yaw rotates 360° continuously while RMB (mouse) or L2+right-stick (pad) is held, at 140°/s mouse-scaled and 180°/s stick. Position damping 0.12 s. Expose every value as `[Export]`. Do NOT implement zoom or occlusion — separate features. Write tests asserting pitch never changes and yaw wraps correctly across the 0/360 boundary."
 
 ---
 
@@ -688,7 +402,7 @@ The debug menu is infrastructure, not a luxury. Every later milestone assumes yo
 |---|---|---|---|
 | M2-FED-01 🔴 | Provide the feeding sequence with release window | 3 s hold; release early = Sip, hold to term = Drain; interrupts on damage | 4 |
 | M2-FED-02 🔴 | Present the Memory Core preview during the feed | Victim's core surfaces in HUD *while* drinking (Plan.md §9.5) | 3 |
-| M2-FED-03 | Provide the combat grapple feed | Staggered humans can be grappled for a risky in-combat Drain | 2 |
+| M2-FED-03 | Provide the combat grapple feed | Staggered humans grappled for a risky in-combat Drain | 2 |
 | M2-FED-04 | Provide Rend as a combat finisher | 40% blood, always-Cold corrupted echo, loud, high Reek | 2 |
 | M2-FED-05 | Flag surviving Sip victims as witnesses | Every Sip creates a persistent witness record | 1 |
 
@@ -698,7 +412,8 @@ The debug menu is infrastructure, not a luxury. Every later milestone assumes yo
 - [ ] Combat is readable and weighty at the fixed camera angle
 - [ ] Sip vs Drain is a decision you actually feel while playing
 - [ ] The Memory Core preview appears mid-feed and is legible
-- [ ] Frame time in budget with 8 enemies active
+- [ ] Frame time in budget **on Windows** with 8 enemies active
+- [ ] **Start profiling on Windows from this milestone forward.** Not at M10.
 
 ---
 
@@ -707,7 +422,7 @@ The debug menu is infrastructure, not a luxury. Every later milestone assumes yo
 > **Weeks 15–22 · 56 sessions**
 > **Goal:** The Sanguine Ledger works, hauntings intrude systemically, and progression runs on biography.
 
-**This is the make-or-break milestone.** Everything before it is scaffolding; everything after it assumes this system is compelling. Do not let it slip and do not soften its gate.
+**This is the make-or-break milestone.** Everything before it is scaffolding; everything after assumes this system is compelling. Do not let it slip and do not soften its gate.
 
 ### Feature Set M3-LDG — The Ledger
 
@@ -732,7 +447,7 @@ The debug menu is infrastructure, not a luxury. Every later milestone assumes yo
 | ID | Feature | Done when | Est. |
 |---|---|---|---|
 | M3-HNT-01 🔴 | Direct haunting selection from the Ledger | `HauntingDirector` triggers on thresholds, weighted by the triggering echo's preferences | 3 |
-| M3-HNT-02 🔴⚠️ | Bleed the 1861 overlay across the world | Full material + palette + ambient-audio swap; **collision provably unchanged**; 20–60 s; photosensitivity-safe variant in the same feature | 6 |
+| M3-HNT-02 🔴⚠️ | Bleed the 1861 overlay across the world | Full material + palette + ambient-audio swap; **collision provably unchanged**; 20–60 s; photosensitivity-safe variant in the same feature; verified on both graphics backends | 6 |
 | M3-HNT-03 | Populate the world with phantom crowds | Dead victims spawn among the living; no blood signature; no shadow; attacking air spikes Suspicion | 4 |
 | M3-HNT-04 | Degrade the HUD through Name Loss | Icons scramble, markers detach, minimap reverts to the 1861 grid | 3 |
 | M3-HNT-05 | Verify hauntings are photosensitivity-safe | Automated luminance-delta check on every safe variant; global "Reduce Visual Intrusion" toggle | 2 |
@@ -756,9 +471,9 @@ The debug menu is infrastructure, not a luxury. Every later milestone assumes yo
 
 ### 🚦🔴 GATE M3 — THE HOOK GATE
 
-This is the most important gate in the project. Treat it as a real decision point, not a formality.
+The most important gate in the project. A real decision point, not a formality.
 
-1. Cut a standalone **45-minute playtest build**.
+1. Cut a standalone **45-minute playtest build** — Windows, since that's what your testers have.
 2. Give it to **at least five people who are not you**.
 3. Watch without helping, hinting, or explaining.
 4. Afterwards ask exactly one open question: **"What was that game about?"**
@@ -784,7 +499,7 @@ This is the most important gate in the project. Treat it as a real decision poin
 
 | ID | Feature | Done when | Est. |
 |---|---|---|---|
-| M4-STR-01 🔴 | Stream chunks in a 3×3 ring | Async load; no frame spike above 4 ms; memory flat across 100 transitions | 5 |
+| M4-STR-01 🔴 | Stream chunks in a 3×3 ring | Async load; no frame spike above 4 ms **on Windows**; memory flat across 100 transitions | 5 |
 | M4-STR-02 🔴 | Persist chunk state without keeping nodes alive | Corpses, loot, broken lights, evidence survive unload/reload | 3 |
 | M4-STR-03 | Render the far field as baked impostors | One impostor mesh per district with emissive windows | 3 |
 | M4-STR-04 🔴 | Assemble The Stack | 12 chunks from the modular kit, lightmapped, in budget | 6 |
@@ -835,7 +550,7 @@ This is the most important gate in the project. Treat it as a real decision poin
 - [ ] Get caught at 05:20 and survive by reading the Sun Map
 - [ ] Save, quit, relaunch — world state identical
 - [ ] The v1→v2 migration test passes
-- [ ] Frame time in budget in the densest Stack chunk at night
+- [ ] Frame time in budget **on Windows** in the densest Stack chunk at night
 
 ---
 
@@ -899,13 +614,14 @@ This is the most important gate in the project. Treat it as a real decision poin
 - [ ] Reach Comprehension 40 and watch the city's language resolve
 - [ ] Send a servant out and wake up fed
 - [ ] Neither boss softlocks on any edge case (killed mid-transition, player torpor mid-fight)
+- [ ] Full gate playthrough completed **on Windows**
 
 ---
 
 ## M6 — The Story
 
 > **Weeks 37–42 · 42 sessions**
-> **Goal:** Prologue and Act I are complete, voiced-in-style, accessible, and controller-verified.
+> **Goal:** Prologue and Act I complete, voiced-in-style, accessible, and controller-verified.
 
 ### Feature Set M6-NAR — Narrative
 
@@ -968,7 +684,7 @@ This is the most important gate in the project. Treat it as a real decision poin
 | M7-SHP-03 🔴 | Ship the demo build | Prologue + ~45 min; separate branch; independently stable | 4 |
 | M7-SHP-04 🔴⚠️ | Run external playtesting | **20+ players**, structured feedback capture, prioritized fix list | 5 |
 | M7-SHP-05 🔴 | Fix the playtest findings | Every P0 and P1 resolved | 5 |
-| M7-SHP-06 🔴 | Verify stability | 2 hours crash-free; no leaks over a long session; all performance budgets met | 3 |
+| M7-SHP-06 🔴 | Verify stability | 2 hours crash-free on **both** machines; no leaks over a long session; all budgets met on Windows | 3 |
 | M7-SHP-07 | Register for Next Fest | Slot booked, assets submitted | 1 |
 | M7-SHP-08 | Complete the licence audit | `ASSET_LICENSES.md` covers every third-party asset in the build | 2 |
 
@@ -977,7 +693,7 @@ This is the most important gate in the project. Treat it as a real decision poin
 - [ ] Steam page live and taking wishlists
 - [ ] Demo stable for 20 strangers
 - [ ] Zero P0/P1 bugs open
-- [ ] 2 hours crash-free confirmed
+- [ ] 2 hours crash-free confirmed on Windows
 - [ ] Every asset's licence documented
 - [ ] Sensitivity read completed on all Kalighat / Kali / Bengali content
 
@@ -989,12 +705,15 @@ This is the most important gate in the project. Treat it as a real decision poin
 
 | ID | Feature | Done when | Est. |
 |---|---|---|---|
-| M8-LCH-01 🔴 | Ship the release build | Windows + Steam Deck; signed; depot uploaded | 3 |
+| M8-LCH-01 🔴 | Ship the release build | Windows + Steam Deck; depot uploaded; exe metadata correct (export from the Windows target, or use Wine on macOS) | 3 |
 | M8-LCH-02 🔴 | Publish the EA roadmap | Public, honest, dated; matches Plan.md §24.3 | 2 |
 | M8-LCH-03 | Open the community channels | Discord, bug reporting, feedback intake | 2 |
 | M8-LCH-04 🔴 | Provide crash and telemetry reporting | Opt-in, privacy-respecting, actually actionable | 3 |
 | M8-LCH-05 | Prepare the hotfix pipeline | You can ship a fix within 24 h of a launch-blocking report | 2 |
 | M8-LCH-06 | Write the launch retrospective | In `Agent_History.md`: what the estimates got wrong and by how much | 2 |
+| M8-LCH-07 | *(optional)* Ship the macOS build | Apple Silicon build tested natively; either notarized ($99/yr Apple Developer) or shipped unsigned with clear Gatekeeper instructions | 2 |
+
+**On M8-LCH-07:** Plan.md §22.1 put macOS at v1.1, but developing on an Apple Silicon Mac means you test that build daily for free and can validate the slice most Mac players actually run. Consider pulling it into v1.0. The only real cost is the notarization certificate, and shipping unsigned with instructions is a legitimate interim option.
 
 ---
 
@@ -1010,12 +729,13 @@ This is the most important gate in the project. Treat it as a real decision poin
 
 ### Monthly
 
-- Re-estimate the current milestone against actual velocity. If you're more than 20% over, cut from §8 *now* rather than at month nine.
+- Re-estimate the current milestone against actual velocity. If more than 20% over, cut from §8 **now** rather than at month nine.
+- Run the gate build on the Windows target even mid-milestone. Divergence found early is a bug; found late it's a rewrite.
 - Post a devlog clip. Building an audience from month two costs almost nothing and is worth more than any single feature.
 
 ### Velocity tracking
 
-After M1, compute actual sessions per feature and rescale the whole plan. **Your first three milestones will overrun.** That is normal and it is information, not failure. What matters is that you find out in month three.
+After M1, compute actual sessions per feature and rescale the whole plan. **Your first three milestones will overrun.** That is normal and it is information, not failure. What matters is finding out in month three.
 
 ---
 
@@ -1025,7 +745,7 @@ Update at the end of every session.
 
 | Milestone | Features | Done | Sessions est. | Sessions actual | Status |
 |---|---|---|---|---|---|
-| M0 Literacy | 11 | 0 | 21 | 0 | ⬜ Not started |
+| M0 Literacy | 12 | 4 | 23 | ~4 | 🟨 In progress |
 | M1 Feel | 21 | 0 | 35 | 0 | ⬜ |
 | M2 Predation | 14 | 0 | 42 | 0 | ⬜ |
 | M3 The Hook ⚠️ | 20 | 0 | 56 | 0 | ⬜ |
@@ -1033,18 +753,23 @@ Update at the end of every session.
 | M5 Power & Pressure | 21 | 0 | 49 | 0 | ⬜ |
 | M6 The Story | 17 | 0 | 42 | 0 | ⬜ |
 | M7 Shipping | 8 | 0 | 28 | 0 | ⬜ |
-| M8 Launch | 6 | 0 | 14 | 0 | ⬜ |
-| **Total** | **139** | **0** | **336** | **0** | |
+| M8 Launch | 7 | 0 | 16 | 0 | ⬜ |
+| **Total** | **141** | **4** | **340** | **~4** | |
 
-**Active feature:** _none_
-**Blocked on:** _nothing_
+Sessions actual for M0 is approximate — sessions 002–004 mixed design authoring with
+environment work. Track it precisely from M1, where the velocity rescale depends on it.
+
+**Done:** M0-ENV-02, M0-ENV-03, M0-ENV-04, M0-ENV-05
+**Active feature:** M0-ENV-01 — 13 of 14 Appendix A checklist rows green
+**Blocked on:** checklist row #9 (F5 debugger attach) — requires a manual F5 in VS Code
+**Next:** M0-ENV-06 (Windows verification target) → M0-LRN → M0-DBG-01
 **Last demo recorded:** _none_
 
 ---
 
 ## 8. Cut Triggers
 
-Pre-agreed so the decision is unemotional when you're tired and behind. Cut **in this order**, and only when you're >20% over budget on a milestone:
+Pre-agreed so the decision is unemotional when you're tired and behind. Cut **in this order**, and only when >20% over budget on a milestone:
 
 1. All minigames except vending machine and transit terminal
 2. All vehicles except tram-hopping
@@ -1067,11 +792,14 @@ Pre-agreed so the decision is unemotional when you're tired and behind. Cut **in
 | Scope creep | **High** | Severe | Feature Cards with explicit OUT lists; agent contract forbids unrequested work |
 | Solo burnout | **High** | Severe | Demoable increment every 1–3 sessions; Sunday no-code rule; devlog for external validation |
 | Velocity overrun | **Very high** | Moderate | Re-estimate monthly; cut list pre-agreed |
+| **Metal vs Vulkan/D3D12 divergence** | Medium | Severe | Develop on Metal, gate on Windows from M0-ENV-06; M1-RND-07 verifies the post chain on both backends; run gate builds on Windows every milestone |
+| **Over-budget because M4 Pro is too fast** | **High** | Moderate | All performance numbers measured on the Windows target, never on the Mac |
 | Godot 3D perf on open world | Medium | Severe | Chunk streaming + directors from M4; profile from M2, not M10 |
 | Pixel-3D illegibility | Medium | Severe | Golden-image tests; readability over aesthetic purity (Pillar 6) |
 | AI-generated code rot | Medium | Severe | Core/presentation split; tests as the contract; independent reviewer sessions |
-| gdUnit4 / Godot version drift | Medium | Moderate | Pin Godot to a gdUnit4Net-supported release; core tests are pure xUnit and immune |
-| LFS cost surprise | Low | Moderate | Azure DevOps decided in M0-ENV-02 |
+| gdUnit4 / Godot version drift | **High** | Moderate | Engine is pinned at 4.7.2, three minor versions past gdUnit4Net's published 4.3–4.4.1 support matrix. If it hasn't caught up by M1-TST-01, drop it and rely on the xUnit core suite plus a headless smoke test and the debug menu. Core tests are pure xUnit and immune |
+| **GitHub LFS quota exceeded** | Medium | Low | Source assets stay outside the repo (§2); only exported files committed; fallback is a $5/mo data pack |
+| Case-sensitivity break on Linux export | Medium | Moderate | CI lowercase-path guard from M0-ENV-04; both dev machines are case-insensitive and will not warn you |
 | Cultural insensitivity | Medium | **Reputational** | Fictionalized shrine and order; sensitivity read before M7 ships |
 | Save corruption in EA | Medium | Severe | Atomic writes + migration chain written and tested at M4, not when needed |
 
@@ -1088,21 +816,113 @@ Reusable shapes. Adapt per feature; never skip the OUT list.
 > "Wire the existing `RaktabeejCore.<Type>` into the game for `<ID>`. Read core state, render it, do not duplicate rules in the node. Register a debug-menu command to set the state directly. Do NOT change core logic — if the feature seems to need a core change, stop and tell me."
 
 **Shader**
-> "Implement `<ID>`, the `<effect>` stage of the post chain in `docs/Plan.md` §18.2. Godot Shading Language. It must compose with the existing stages in the documented order. Add a debug toggle for this stage alone. Include the photosensitivity-safe variant in this same feature. Keep the whole chain under 2 ms."
+> "Implement `<ID>`, the `<effect>` stage of the post chain in `docs/Plan.md` §18.2. Godot Shading Language. It must compose with the existing stages in the documented order. Add a debug toggle for this stage alone. Include the photosensitivity-safe variant in this same feature. Keep the whole chain under 2 ms. Note anything that might behave differently on Vulkan/D3D12 than on Metal."
 
 **Bulk content**
 > "Author `<N>` `EchoDefinition` `.tres` resources for the `<archetype>` archetype following `docs/Plan.md` §3.2. Each needs id, name template, valence, dissonance weight, tags from the canonical tag list, anchor site, unfinished act, and a 2–3 sentence vignette. Tags must be consistent with the archetype's real life. Do not add new tags to the canonical list without asking."
 
 **Review**
-> "Review the diff on branch `<branch>` against Feature Card `<ID>`. Report: (1) anything implemented outside the IN scope, (2) any stub, TODO, or fixed-value return, (3) any test that asserts the implementation rather than the requirement, (4) any core file that now references Godot, (5) any hardcoded balance number that belongs in a `.tres`. Do not fix anything — report only."
-````
+> "Review the diff on branch `<branch>` against Feature Card `<ID>`. Report: (1) anything implemented outside the IN scope, (2) any stub, TODO, or fixed-value return, (3) any test that asserts the implementation rather than the requirement, (4) any core file that now references Godot, (5) any hardcoded balance number that belongs in a `.tres`, (6) any asset path under `game/` that is not lowercase_snake_case, or any `.cs` script under `game/` whose class name does not match its PascalCase file name exactly. Do not fix anything — report only."
 
 ---
 
-Two things before you start:
+## Appendix A — Environment Setup
 
-**Move Plan.md and Milestones.md into the Windows repo at `docs/`.** They're your source of truth and they should be versioned alongside the code they describe, not sitting in a Downloads folder on a different machine.
+Complete sequence to rebuild the dev environment from a fresh macOS install. Detailed rationale for each step is in the project chat log; this is the executable version.
 
-**Your first three features are M0-ENV-01 through M0-ENV-03** — which is exactly Part 1 above. Work down that verification checklist, and don't touch M0-LRN until every row is green.
+### A.1 macOS toolchain
 
-Does this plan look good, or would you like me to adjust anything?
+```bash
+# 1 — Command line tools (GUI dialog: click Install)
+xcode-select --install
+
+# 2 — Homebrew, then put it on PATH (Apple Silicon installs to /opt/homebrew)
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+echo >> ~/.zprofile
+echo 'eval "$(/opt/homebrew/bin/brew shellenv)"' >> ~/.zprofile
+eval "$(/opt/homebrew/bin/brew shellenv)"
+
+# 3 — .NET 8 SDK: download the Arm64 .pkg from
+#     dotnet.microsoft.com/download/dotnet/8.0  — NOT the x64 build.
+#     Verify: dotnet --info must show Architecture: arm64
+
+# 4 — Godot .NET: download the ".NET" macOS build from
+#     godotengine.org/download/macos, unzip, drag the .app to /Applications.
+#     Right-click → Open if Gatekeeper objects.
+ls /Applications | grep -i godot     # confirm the exact app name
+cat >> ~/.zshrc << 'EOF'
+
+# Godot
+export GODOT4="/Applications/Godot_mono.app/Contents/MacOS/Godot"
+alias godot="$GODOT4"
+EOF
+source ~/.zshrc
+godot --version                      # MUST contain "mono"
+
+# 5 — VS Code + tooling
+brew install --cask visual-studio-code
+#   Cmd+Shift+P → "Shell Command: Install 'code' command in PATH"
+#   Extensions: C# Dev Kit, godot-tools, EditorConfig
+#   Setting godotTools.editorPath.godot4 = the path above
+
+# 6 — Git, LFS, GitHub CLI
+brew install git git-lfs gh
+git config --global user.name "Nischaya Agarg"
+git config --global user.email "nischayagarg008@gmail.com"
+git config --global init.defaultBranch main
+git config --global core.autocrlf false
+git config --global pull.rebase false
+git lfs install
+gh auth login                        # GitHub.com → HTTPS → Yes → web browser
+```
+
+### A.2 Project layout
+
+```bash
+mkdir -p ~/dev
+cd ~/dev
+git clone https://github.com/Nischaya008/Raktabeej.git raktabeej
+cd raktabeej
+
+# Source assets live OUTSIDE the repo
+mkdir -p ~/dev/raktabeej-assets/{blender,voxel,audio_raw,reference}
+```
+
+Then: `global.json` (pin .NET 8) → `dotnet new sln` + core + tests → `.gitattributes` / `.gitignore` → create the Godot project in `game/` via the GUI (Forward+, then attach a C# script to generate the csproj) → `dotnet add game/Raktabeej.csproj reference RaktabeejCore/RaktabeejCore.csproj` → `.vscode/launch.json` and `tasks.json` (hardcode the Godot path; VS Code does not inherit `~/.zshrc`) → `.github/workflows/ci.yml` → `.kiro/steering/` × 3.
+
+### A.3 Godot project settings
+
+| Setting | Value |
+|---|---|
+| Rendering → Renderer | **Forward+** |
+| Rendering → Rendering Device → Driver | **macOS: leave default** (resolves to Metal). **Windows: `project.godot` explicitly pins `rendering_device/driver.windows="d3d12"`.** Godot does not write that key itself — verified by opening a bare project in 4.7.2 — so it is a deliberate override, not a default. Leaving it unset would give the Windows target Vulkan and silently break parity with the committed project. See the open question in `Agent_History.md` |
+| Physics → 3D → Physics Engine | **Jolt Physics** |
+| **Application → Run → Main Scene** | **`res://scenes/main.tscn` — MUST be set.** Without it F5 builds successfully and then opens no window, with no error explaining why |
+| Version Control Metadata | None (git is configured separately) |
+
+### A.4 Verification checklist
+
+| # | Check | Command | Expected |
+|---|---|---|---|
+| 1 | Command line tools | `xcode-select -p` | `/Library/Developer/CommandLineTools` |
+| 2 | Homebrew on PATH | `which brew` | `/opt/homebrew/bin/brew` |
+| 3 | .NET SDK version | `dotnet --list-sdks` | `8.0.x` |
+| 4 | .NET is native arm64 | `dotnet --info \| grep Architecture` | `arm64` |
+| 5 | Godot is the .NET build | `godot --version` | contains `mono` |
+| 6 | Core builds | `dotnet build` | 0 errors |
+| 7 | Tests pass | `dotnet test` | 1+ passing |
+| 8 | Godot headless | `godot --headless --path game --quit` | exit 0 **and prints `boot: C# assembly loaded`**. That line is the liveness probe in `src/Main.cs` — without it, exit 0 only proves the engine started, not that the C# assembly loaded and `_Ready()` ran |
+| 9 | **F5 debugging** | breakpoint in `src/Main.cs` `_Ready()` | breakpoint hits. **Select the "Play" config in the Run and Debug dropdown first.** Pressing F5 with a `.cs` file focused lets C# Dev Kit hijack it and report `does not support debugging. No launchable target found` — a Godot game assembly is a *library* with no entry point. Build output goes to **Terminal**; `GD.Print` and debugger status go to **Debug Console** (Cmd+Shift+Y) |
+| 10 | Jolt enabled | Project Settings → Physics → 3D | Jolt Physics |
+| 11 | Repo outside iCloud | `pwd` | `/Users/gargnisc/dev/raktabeej` |
+| 12 | GitHub auth | `gh auth status` | logged in as Nischaya008 |
+| 13 | CI green | Actions tab on GitHub | both jobs pass |
+| 14 | No junk committed | `git ls-files \| grep -E '\.blend\|bin/\|\.godot'` | no output |
+
+### A.5 Windows verification target (M0-ENV-06)
+
+On the Mac: **Editor → Manage Export Templates → Download and Install**, then **Project → Export → Add → Windows Desktop**. Export to `builds/windows/`.
+
+Copy the `.exe` and `.pck` to the Windows machine and run. Confirm the debug overlay is readable and note the frame time — that number, not the Mac's, is your budget baseline.
+
+For polished exe metadata (icon, version info) Godot needs `rcedit`, which requires Wine on macOS (`brew install --cask wine-stable`). Alternatively do release exports on the Windows machine. Functional debug builds do not need this.

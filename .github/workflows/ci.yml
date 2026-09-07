@@ -1,8 +1,11 @@
 name: ci
 
 on:
+  # Every branch, not just feat/**. Definition of Done requires CI green before
+  # merging to main, so a chore/ or fix/ branch that silently runs nothing means
+  # you only discover a break after it has already landed.
   push:
-    branches: [ main, 'feat/**' ]
+    branches: [ '**' ]
   pull_request:
     branches: [ main ]
 
@@ -28,11 +31,22 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      # Assets and scenes load via hand-written res:// strings, so a case
+      # mismatch only fails on case-sensitive filesystems (Linux, Steam Deck).
+      # Only the filename is exempt for C# scripts: Godot requires the class
+      # name to match the file name exactly (D-16). Directory segments are
+      # never exempt, and need their own pass because the filename regex is
+      # anchored to the end of the path.
       - name: Fail on uppercase paths under game/
         run: |
-          BAD=$(find game -path game/.godot -prune -o -print \
+          BAD=$(
+            {
+              git ls-files game | grep -E '[A-Z][^/]*/' || true
+              git ls-files game \
                 | grep -E '/[^/]*[A-Z][^/]*$' \
-                | grep -vE '\.(csproj|sln)$' || true)
+                | grep -vE '\.(csproj|sln)$|\.cs(\.uid)?$' || true
+            } | sort -u
+          )
           if [ -n "$BAD" ]; then
             echo "Uppercase paths found (breaks case-sensitive Linux export):"
             echo "$BAD"

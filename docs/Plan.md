@@ -4,7 +4,7 @@
 > **Status:** v1.0 — Source of Truth
 > **Working Title:** RAKTABEEJ *(alt: "Old Blood, New Neon", "The Sanguine Ledger", "Coldblood Sprawl")*
 > **Genre:** Open-world action-survival RPG with psychological progression
-> **Engine:** Godot 4.5+ (.NET), C# primary
+> **Engine:** Godot 4.7.2 (.NET), C# primary — pinned, see `docs/TOOLCHAIN.md`
 > **Platforms:** Windows (v1.0) → macOS/Linux (v1.1) → Android/iOS (post-1.0) → Console (only if commercially viable)
 > **Team:** 1 developer (solo, AI-assisted)
 > **Target:** Steam Early Access, ~12 months from project start
@@ -1154,7 +1154,7 @@ By the endgame the player owns a two-hundred-page book of people they killed, an
 
 | Layer | Choice | Rationale |
 |---|---|---|
-| Engine | **Godot 4.5+ (.NET build)** | $0, MIT, no royalties, editor runs on macOS, exports Windows |
+| Engine | **Godot 4.7.2 (.NET build)**, pinned | $0, MIT, no royalties, editor runs on macOS, exports Windows |
 | Language | **C# (.NET 8+)** primary | Your existing skill; strong tooling; testable |
 | Secondary | **GDScript** for editor tools, small glue, shader-adjacent | Faster iteration for throwaway tooling |
 | Shaders | **Godot Shading Language** | The pixel/haunting pipeline lives here |
@@ -1319,9 +1319,9 @@ Co-op (Expose Vein, shared lairs, clan blood-types) is a natural fit and a real 
 
 ## 22. Engine & Platform Decision Record
 
-### ADR-001: Godot 4.5+ with C#
+### ADR-001: Godot 4.x with C#
 
-**Decision:** Godot 4.5+ (.NET build), C# primary, GDScript for tooling.
+**Decision:** Godot 4.x (.NET build), C# primary, GDScript for tooling. Pinned at **4.7.2.stable.mono** as of M0; no upgrades mid-milestone (`docs/TOOLCHAIN.md`).
 
 **Alternatives considered:**
 
@@ -1359,7 +1359,7 @@ Co-op (Expose Vein, shared lairs, clan blood-types) is a natural fit and a real 
 
 | Need | Tool | Cost |
 |---|---|---|
-| Engine | Godot 4.5+ .NET | $0 (MIT) |
+| Engine | Godot 4.7.2 .NET | $0 (MIT) |
 | Code | VS Code + C# Dev Kit | $0 |
 | 3D modelling & animation | **Blender** | $0 |
 | Blocky props | **MagicaVoxel** | $0 |
@@ -1371,7 +1371,7 @@ Co-op (Expose Vein, shared lairs, clan blood-types) is a natural fit and a real 
 | SFX generation | **Bfxr**, **Chiptone** | $0 |
 | Textures / HDRIs / models | **ambientCG**, **Poly Haven**, **Kenney**, **Quaternius** (all CC0) | $0 |
 | Sound library | **freesound.org**, CC0-filtered | $0 |
-| VCS | Git + GitHub (private repo) | $0 |
+| VCS | Git + GitHub | $0 — the repo is currently **public**; see the open question in `Agent_History.md` |
 | CI | GitHub Actions | $0 |
 | Task tracking | GitHub Projects / Obsidian | $0 |
 | Testing | xUnit + gdUnit4 | $0 |
@@ -1479,8 +1479,8 @@ Each task is a working, demoable increment. Build in order; each builds on the l
 ### Phase 0 — Foundations (M0)
 
 **Task 1: Establish the development environment and CI pipeline**
-Install Godot 4.5+ .NET, .NET 8 SDK, VS Code with C# Dev Kit, Blender, and Pixelorama. Create the Git repository with the §21.3 structure, decide and configure LFS hosting (Azure DevOps recommended, per §23.3), and add `.gitignore` and `.gitattributes` for Godot + LFS. Create the `RaktabeejCore` class library and `RaktabeejCore.Tests` xUnit project. Add a GitHub Actions workflow that builds the core library, runs xUnit, opens the Godot project headless, and exports a Windows debug build.
-*Tests:* CI green on a trivial commit; one placeholder xUnit test passes; headless export produces a runnable `.exe`.
+Install Godot 4.7.2 .NET, .NET 8 SDK, VS Code with C# Dev Kit, Blender, and Pixelorama. Create the Git repository with the §21.3 structure, decide and configure LFS hosting (Azure DevOps recommended, per §23.3), and add `.gitignore` and `.gitattributes` for Godot + LFS. Create the `RaktabeejCore` class library and `RaktabeejCore.Tests` xUnit project. Add a GitHub Actions workflow that builds the core library, runs xUnit, opens the Godot project headless, and exports a Windows debug build.
+*Tests:* CI green on a trivial commit; one xUnit test that asserts a real requirement passes — a placeholder that cannot fail satisfies the checklist while proving nothing (see decision D-06's architecture guard); headless export produces a runnable `.exe`.
 *Demo:* Push a commit and watch CI produce a downloadable Windows build artifact.
 
 **Task 2: Complete three throwaway learning projects**

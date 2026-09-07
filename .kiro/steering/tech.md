@@ -6,7 +6,8 @@ inclusion: always
 
 ## Stack
 Godot 4.x (.NET build) · C# / .NET 8 · Jolt 3D physics · xUnit
-Dev machine: macOS Apple Silicon (Metal). Verify target: Windows (Vulkan/D3D12).
+Dev machine: macOS Apple Silicon (Metal, default). Verify target: Windows (D3D12 —
+`project.godot` pins `rendering_device/driver.windows`, it is not Godot's default).
 
 ## Architecture — non-negotiable
 - `RaktabeejCore` is a plain .NET library and MUST NEVER reference Godot.
@@ -18,8 +19,17 @@ Dev machine: macOS Apple Silicon (Metal). Verify target: Windows (Vulkan/D3D12).
 - Save data is a POCO serialized with System.Text.Json, with a SchemaVersion.
   Never serialize a Godot node.
 
-## Naming
-- All files and folders under `game/` are lowercase_snake_case. CI enforces this.
+## Naming (decision D-16 — rationale in Agent_History.md)
+- Under `game/`, C# script files are `PascalCase.cs` and the class name MUST
+  match the file name exactly. Godot resolves scripts by that match and is
+  case-sensitive about it; a mismatch fails at runtime, not at build time.
+- Everything else under `game/` is lowercase_snake_case: directories, scenes,
+  resources, art, audio, shaders. These load via hand-written `res://` strings,
+  where a case mismatch survives macOS and Windows but breaks the Linux and
+  Steam Deck export. CI enforces this on every committed path. The exemption
+  covers only the *filename*, and only for `.cs`, `.cs.uid`, `.csproj`, `.sln`.
+  **Directory segments are never exempt** — `game/src/Autoload/GameClock.cs`
+  fails the guard on its `Autoload/` segment despite being a `.cs` file.
 - C# types PascalCase, private fields _camelCase.
 
 ## Working rules
