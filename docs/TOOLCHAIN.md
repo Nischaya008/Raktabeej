@@ -17,7 +17,7 @@ with a gate build on the Windows target.
 | .NET SDK | `8.0.x` (arm64) | Pinned in `global.json` (`8.0.0`, `rollForward: latestFeature`). 10.0.400 is installed side-by-side and unused here |
 | Target framework | `net8.0` | What `Godot.NET.Sdk` is validated against |
 | Renderer | Forward+ | |
-| Rendering driver | Metal (macOS, default), **D3D12 (Windows, explicitly pinned)** | `project.godot` sets `rendering_device/driver.windows="d3d12"`. Godot writes no driver key on its own, so this is an override rather than a default. macOS is left alone |
+| Rendering driver | Metal (macOS, default), **D3D12 (Windows, explicitly pinned)** | Decision **D-19**. `project.godot` sets `rendering_device/driver.windows="d3d12"`, which is also Godot's own Windows default from 4.6. Never replace this with "leave default" — the default changed between 4.5 and 4.6, so only an explicit pin survives an engine upgrade. Vulkan remains a one-line fallback if D3D12 profiles badly at M1-RND-07 |
 | 3D physics | Jolt Physics | Default since Godot 4.4 |
 | Test framework | xUnit | gdUnit4Net is deferred and may be dropped — decision D-15 |
 

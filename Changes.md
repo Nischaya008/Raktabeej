@@ -104,6 +104,22 @@ Rationale lives in `Agent_History.md`. This file answers "what changed", not "wh
 
 ---
 
+### Decisions D-17 to D-20 (session 005)
+
+- **D-17 — repo stays public**, deliberately. Docs corrected; spoiler exposure accepted as a cost
+- **D-18 — dropped the three throwaway learning games.** M0-LRN is now a living
+  `docs/LEARNINGS.md` plus a guided editor-literacy pass on the real project. M0: 12 → 10
+  features, 23 → 15 sessions. Project total: 141 → 139 features, 340 → 332 sessions
+- **D-19 — Windows renders through D3D12, explicitly pinned.** Reverses the session-004
+  assumption that Vulkan was safer: D3D12 became Godot's Windows default in 4.6 because Windows
+  Vulkan drivers are poorly maintained. `M1-RND-07` must now profile both backends
+- **D-20 — macOS ships in v1.0** alongside Windows (primary). `M8-LCH-07` promoted from optional
+  to required; Metal becomes a shipping backend; notarization is now a pre-M7 budget decision
+- Corrected a session-004 error: `Plan.md` never mentioned the rendering driver, so the claimed
+  constitution conflict did not exist
+
+---
+
 ## Pending — not yet applied
 
 - [x] `.vscode/settings.json` — was already committed in `42f1e09`
@@ -113,9 +129,11 @@ Rationale lives in `Agent_History.md`. This file answers "what changed", not "wh
 - [x] `docs/Milestones.md` Appendix A.3 — add the Main Scene setting row
 - [x] `docs/Milestones.md` Appendix A.4 — add the F5 troubleshooting note to row 9
 - [x] `docs/Milestones.md` §9 — gdUnit4 version-drift risk to Likelihood High
-- [ ] `docs/Plan.md` §22.1 — reconsider macOS for v1.0 *(scope decision, still open)*
-- [ ] M0-LRN — decide whether the three throwaway learning games are still the right spend
-      under an AI-orchestrated workflow *(scope decision, still open)*
+- [x] `docs/Plan.md` §22.1 — macOS pulled into v1.0 (**D-20**)
+- [x] M0-LRN — throwaway learning games dropped (**D-18**)
+- [ ] Steam Deck: still a v1.0 launch platform, or moved out? Decide before M6-ACC-04
+- [ ] macOS signing: notarize at $99/yr, or ship unsigned with Gatekeeper instructions? Before M7
+- [ ] `actions/checkout@v4` / `actions/setup-dotnet@v4` target the deprecated Node 20 — own change
 
 ---
 

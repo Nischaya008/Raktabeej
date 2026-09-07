@@ -5,7 +5,7 @@
 > **Working Title:** RAKTABEEJ *(alt: "Old Blood, New Neon", "The Sanguine Ledger", "Coldblood Sprawl")*
 > **Genre:** Open-world action-survival RPG with psychological progression
 > **Engine:** Godot 4.7.2 (.NET), C# primary — pinned, see `docs/TOOLCHAIN.md`
-> **Platforms:** Windows (v1.0) → macOS/Linux (v1.1) → Android/iOS (post-1.0) → Console (only if commercially viable)
+> **Platforms:** **Windows + macOS (v1.0, Windows primary — D-20)** → Linux/Steam Deck (v1.0 if scope allows) → Android/iOS (post-1.0) → Console (only if commercially viable)
 > **Team:** 1 developer (solo, AI-assisted)
 > **Target:** Steam Early Access, ~12 months from project start
 > **Budget:** $100 minimum (Steam Direct fee); everything else free or optional
@@ -1014,6 +1014,11 @@ Reference points: *V Rising* (readability, camera, VFX), *The Precinct* (urban s
 
 ### 18.2 Render Pipeline (exact)
 
+**Rendering driver:** Metal on macOS (default), D3D12 on Windows (explicitly pinned in
+`project.godot` — decision D-19). Never set the Windows driver to "default": Godot changed that
+default in 4.6, so only an explicit pin survives an engine upgrade. Full rationale and the Vulkan
+fallback are in `docs/TOOLCHAIN.md`.
+
 ```
 Forward+ renderer (desktop)
   │
@@ -1343,13 +1348,13 @@ Co-op (Expose Vein, shared lairs, clan blood-types) is a natural fit and a real 
 |---|---|---|---|
 | **Windows** | Full, excellent | **v1.0** | Primary target. Steam. |
 | **Steam Deck / Linux** | Full, excellent | **v1.0** | Nearly free; controller layout already designed; large relevant audience |
-| **macOS** | Full | v1.1 | You develop on a Mac, so this is cheap. **Notarization requires $99/yr Apple Developer**; without it users must right-click→Open past Gatekeeper. Ship unsigned first with clear instructions, buy the cert when revenue exists |
+| **macOS** | Full | **v1.0 (D-20)** | You develop on a Mac, so this is cheap and exercised daily. Metal is therefore a **shipping** backend, making M1-RND-07's dual-backend check load-bearing. **Notarization requires $99/yr Apple Developer**; without it users must right-click→Open past Gatekeeper. Signing choice must be settled before M7 |
 | **Android** | Experimental C#; needs control redesign | Post-1.0 | $25 one-time Play fee. Treat as a separate product, not a port |
 | **iOS** | Experimental C#; requires $99/yr + Mac | Post-1.0 | Lowest priority |
 | **Web** | **Impossible** with C# in Godot 4 | Never | |
 | **Nintendo Switch / consoles** | Requires paid third-party port + devkit + approved account | Only post-success | Incompatible with a $0 budget |
 
-**Recommendation: commit fully to Windows + Steam Deck for v1.0.** Chasing seven platforms is the most reliable way to ship none of them.
+**Amended by D-20: commit to Windows (primary) + macOS for v1.0.** Steam Deck remains desirable and nearly free, but whether it stays a *launch* platform is an open question — three at launch is a lot for a first game. Chasing seven platforms is still the most reliable way to ship none of them.
 
 ---
 
@@ -1381,7 +1386,7 @@ Co-op (Expose Vein, shared lairs, clan blood-types) is a natural fit and a real 
 | Item | Cost | Required? |
 |---|---|---|
 | **Steam Direct fee** | **$100 one-time** | **Yes.** Unavoidable. Recoupable after $1,000 in revenue |
-| Apple Developer (signed/notarized macOS) | $99/yr | No — defer; ship unsigned with instructions |
+| Apple Developer (signed/notarized macOS) | $99/yr | **Now a real launch decision (D-20)** — macOS ships in v1.0. Either budget it, taking the minimum to $199 for year one, or commit to shipping unsigned with Gatekeeper instructions. Decide before M7 |
 | Google Play Developer | $25 one-time | No — post-1.0 only |
 | Composer for original score | $300–1,500 | No, but the highest-leverage paid item if you ever have budget |
 | Steam capsule / key art | $150–400 | No, but capsule art materially affects store conversion. Consider it the second paid item |
@@ -1434,7 +1439,7 @@ gantt
 
 | Milestone | Weeks | Exit criteria (must all be true) |
 |---|---|---|
-| **M0 — Literacy** | 1–3 | Godot + C# + Jolt understood. **Three tiny finished throwaway games** (a Pong, a top-down shooter, a 3D platformer). Repo, CI, LFS decision, debug-menu skeleton all in place. **Do not skip this. Learning on the real project is how first games die.** |
+| **M0 — Literacy** | 1–3 | Godot + C# + Jolt understood. **Amended by D-18:** the three throwaway games are dropped; literacy comes from a guided editor pass on the real project plus a living `LEARNINGS.md`. Repo, CI, asset-hosting decision, debug-menu skeleton all in place. **Still do not skip the milestone** — M0-ENV and M0-DBG gate everything after, and the M1 feel gate and M3 playtest gate cannot be delegated. |
 | **M1 — Feel** | 4–8 | Grey-box block; player moves; **camera rig exactly to §6 spec**; pixel + palette + dither pipeline running; native-res UI layer. *Gate: is moving and rotating the camera enjoyable for 10 minutes with no content?* If no, fix it now — this feel is the substrate of everything. |
 | **M2 — Predation** | 9–14 | Claw combo, dodge, one enemy with telegraphs, Blood Pool, blood types, Sip/Drain feeding with the release window, Withering, torpor. `RaktabeejCore` established with xUnit coverage on blood math. |
 | **M3 — THE HOOK** ⚠️ | 15–22 | **The make-or-break milestone.** Memory Cores, Echo absorption, Ledger screen, Dissonance, **Hauntings H1/H2/H3 working**, Confess/Devour/Enshrine all functional, one power unlocked via Echo recipe. **Gate: give the build to 5 strangers. If the Ledger is not the thing they talk about afterward, pivot or stop.** Everything after this assumes the hook works. |
@@ -1483,10 +1488,10 @@ Install Godot 4.7.2 .NET, .NET 8 SDK, VS Code with C# Dev Kit, Blender, and Pixe
 *Tests:* CI green on a trivial commit; one xUnit test that asserts a real requirement passes — a placeholder that cannot fail satisfies the checklist while proving nothing (see decision D-06's architecture guard); headless export produces a runnable `.exe`.
 *Demo:* Push a commit and watch CI produce a downloadable Windows build artifact.
 
-**Task 2: Complete three throwaway learning projects**
-Build and finish three tiny complete games in Godot: (a) Pong in 2D, (b) a top-down 3D arena shooter with one enemy type, (c) a 3D platformer with a follow camera. Each must have a start screen, a win/lose state, and sound. Delete them afterward — **the artifact is your competence, not the code.** Write a short `docs/LEARNINGS.md` capturing Godot idioms discovered: node lifecycle, signals, `_PhysicsProcess` vs `_Process`, resource loading, C#-specific marshalling gotchas (§ the `Position.X` struct trap).
-*Tests:* Each game is playable start to finish without crashing.
-*Demo:* Play all three. You now know the engine.
+**Task 2: Acquire engine literacy on the real project** *(amended by D-18)*
+**Amended by D-18 — the three throwaway games (Pong, arena shooter, platformer) are dropped.** They assumed a developer hand-writing the code; this project is AI-orchestrated, so they bought little that transferred. Instead: complete a **guided editor-literacy pass on the real project** (build a node hierarchy, attach a C# script, expose an `[Export]` and tune it live while running, use the remote inspector, read the debugger and profiler, export a build), and keep `docs/LEARNINGS.md` as a **living log** appended whenever a Godot idiom or trap is hit — node lifecycle, signals, `_PhysicsProcess` vs `_Process`, resource loading, C# marshalling gotchas (the `Position.X` struct trap). What this does **not** remove: the M1 feel gate and the M3 playtest reading are subjective and undelegatable, and you remain the only reviewer of agent output.
+*Tests:* You can perform each editor operation unaided, with no step-by-step open in front of you.
+*Demo:* Change an `[Export]` on a running game and watch it take effect live. You now know the tool.
 
 **Task 3: Build the debug menu and dev overlay**
 Create an in-game debug panel (toggle on `F1`) that will grow all game long: an FPS/frame-time overlay, a free-camera toggle, a time-of-day scrubber, and an empty extensible command list. Add a `DebugService` autoload that other systems register commands with.

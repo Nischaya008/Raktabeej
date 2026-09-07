@@ -31,6 +31,10 @@ is updated in place so there is always one place to look for the current answer.
 | D-14 | **Pin Godot to 4.7.2.stable.mono. No upgrades mid-milestone.** | Minor Godot releases change rendering and physics behaviour. An accidental upgrade mid-project would silently shift the post-process chain | 003 |
 | D-15 | **xUnit only for now. gdUnit4Net deferred to M1 and may be dropped.** | gdUnit4Net's published support matrix covers Godot 4.3–4.4.1; actual engine is 4.7.2. ~90% of test value lives in the engine-agnostic core anyway, which is unaffected | 001, 003 |
 | D-16 | **C# scripts under `game/` are `PascalCase.cs` with an exactly-matching class name. Everything else stays `lowercase_snake_case`.** | Godot resolves a C# script by matching class name to file name, case-sensitively — verified empirically on 4.7.2. The old blanket-lowercase rule would have forced `class debug_service` across ~200 files. The lowercase guard's real value is protecting `res://` asset strings from breaking the Linux export, which is untouched by this | 004 |
+| D-17 | **The repository stays public.** | Deliberate now, rather than the accident it was until session 004. Accepts that `Plan.md` publishes the complete story and all four endings pre-launch. Aligns with the §6 build-an-audience-from-month-two stance, and public repos get unlimited Actions minutes. **Consequence: the spoiler exposure is now a chosen cost, so stop treating `Plan.md` as internal** | 005 |
+| D-18 | **Drop the three throwaway learning games. Acquire engine literacy on the real project, guided.** | The plan assumed hand-coding; this project is AI-orchestrated, so hand-building Pong teaches little that transfers. Saves ~8 sessions. **What is not dropped:** the M1 feel gate and the M3 playtest reading are subjective and explicitly undelegatable (§4.5), and §4.4 makes the developer the only reviewer of agent output. Replaced by a living `LEARNINGS.md` and a guided editor-literacy pass on the real project | 005 |
+| D-19 | **Windows renders through D3D12, explicitly pinned. Not "leave default".** | Reverses the session-004 assumption that Vulkan was the safer default. The Godot Foundation sponsored work to make **D3D12 the default Windows driver from 4.6** because Windows Vulkan GPU drivers are poorly maintained and have repeatedly broken shipped Godot games. Pinning explicitly also survives the default changing again between engine versions, which it already did once | 005 |
+| D-20 | **macOS ships in v1.0 alongside Windows. Windows is the primary target.** | Supersedes `Plan.md` §22.1, which had macOS at v1.1 and `M8-LCH-07` as optional. Development happens on Apple Silicon, so the macOS build is tested daily for free. Consequence: Metal is now a *shipping* backend rather than a dev convenience, which makes `M1-RND-07`'s dual-backend verification load-bearing, and notarization becomes a real budget question | 005 |
 
 ### Pinned toolchain
 
@@ -41,20 +45,123 @@ private until session 004. Unresolved; see the open questions below.
 
 ### Current position
 
-- **Active milestone:** M0 — Literacy & Foundations (4 of 12 features done)
+- **Active milestone:** M0 — Literacy & Foundations (4 of **10** features done; was 12 before D-18)
 - **Active feature:** M0-ENV-01 (Provision the macOS development toolchain) — 13 of 14 rows green
 - **Blocked on:** Verification checklist row #9 — F5 debugger attach in VS Code. Manual step; only a human can press F5
-- **Done:** M0-ENV-02, M0-ENV-03, M0-ENV-04, M0-ENV-05
-- **Not started:** M0-ENV-06 (Windows verification target), all of M0-LRN, all of M0-DBG
-- **Open scope question:** whether M0-LRN's three throwaway learning games are still the right
-  spend given an AI-orchestrated workflow. Raised in Session 004; undecided.
-- **Open technical question:** D3D12 vs Vulkan on the Windows verification target. Must be
-  settled before M1-RND-07. See Session 004.
-- **Open question:** the repo is **public** while the docs said private. The full story and all
-  four endings are in `Plan.md`. See Session 004.
+- **Done:** M0-ENV-02, M0-ENV-03, M0-ENV-04, M0-ENV-05 — merged as `3f92697`, CI green
+- **Not started:** M0-ENV-06 (Windows verification target), M0-LRN-04/05, M0-DBG-01/02
+- **Next up:** M0-DBG-01 (debug menu) is the first real code feature and the first demoable one
+- **Resolved in session 005:** repo visibility (D-17), M0-LRN (D-18), Windows driver (D-19),
+  macOS in v1.0 (D-20).
+- **Open question:** does **Steam Deck** stay a v1.0 launch platform? `Plan.md` §22.1 says yes,
+  but with macOS promoted that makes three at launch. Decide before M6-ACC-04.
+- **Open question:** **notarize the macOS build ($99/yr) or ship unsigned** with Gatekeeper
+  instructions? Now a launch-blocking question rather than a deferrable one. Decide before M7.
 - **Tracked follow-up:** CI warns that `actions/checkout@v4` and `actions/setup-dotnet@v4`
   target the deprecated Node 20 and are being forced onto Node 24. Not a failure. Deliberately
   not bundled into M0 foundation work — it wants its own small change.
+- **Tracked follow-up:** `M1-RND-07` must **profile both D3D12 and Vulkan** on the Windows box,
+  not merely confirm D3D12 renders. See D-19 for why.
+
+---
+
+## Session 005 — [DATE] — Four decisions settled; the Windows driver reversed on evidence
+
+### Goal
+Land the M0 foundation work, then resolve the three open questions session 004 surfaced.
+
+### Landed first
+`3f92697` squash-merged to `main`, CI green on both jobs — including the path guard whose
+directory-detection regression this cycle introduced and fixed. The trigger fix is validated
+by existence: a `chore/**` branch produced a CI run, which it could not have done before.
+
+### D-19 — I was wrong about the Windows driver, and the reversal matters
+
+Session 004 left this open and framed Vulkan as the safer choice, reasoning it was Godot's
+default and therefore its better-exercised Windows path. **That reasoning was a version behind.**
+
+The Godot Foundation sponsored work making **Direct3D 12 the default RenderingDevice driver on
+Windows from 4.6**, because Windows Vulkan drivers are poorly maintained relative to their
+Direct3D 12 counterparts, and driver regressions from Nvidia and AMD have outright broken Godot
+and games shipped with it ([Godot 4.6 dev 5 release
+notes](https://godotengine.org/article/dev-snapshot-godot-4-6-dev-5/), and [maintainer comment
+on the crash thread](https://forum.godotengine.org/t/godot-crashing-to-the-point-where-its-unusable/129333/14)).
+
+So the `rendering_device/driver.windows="d3d12"` sitting in `project.godot` since `42f1e09` was
+correct all along. The stale guidance was `Milestones.md` Appendix A.3 saying *"leave default"* —
+written when Vulkan was the Windows default. Amended.
+
+**Correction to Session 004.** That entry claimed `Plan.md` §21.1 mandated leaving the driver to
+Godot, and therefore that `project.godot` contradicted the constitution and Plan.md should win
+under §0.5. Both claims were false: `Plan.md` does not mention the rendering driver anywhere —
+verified by grep across the whole file. The only stale statements were in `Milestones.md` A.3 and
+the `Agent_History` Standing Reference table. There was no constitution conflict to resolve.
+Cited from memory of the document's structure rather than from the document. Grep first.
+
+Two things worth holding onto:
+
+- **The explicit pin is the point, not just the value.** The Windows default changed between 4.5
+  and 4.6. Any instruction of the form "leave it default" is unstable across engine versions,
+  which is exactly the class of silent drift D-14 exists to prevent.
+- **D3D12 is not free.** It has reported slower startup than Vulkan
+  ([#103844](https://github.com/godotengine/godot/issues/103844)), the original driver landed
+  measurably behind Vulkan in some scenes
+  ([PR #64304](https://github.com/godotengine/godot/pull/64304)), and post-4.6 perf differences
+  are still being filed ([#115431](https://github.com/godotengine/godot/issues/115431)). So
+  **M1-RND-07 must measure both backends on the Windows box, not just confirm D3D12 renders.**
+  Vulkan stays a one-line fallback if the post-process chain profiles badly.
+
+Also note the *stability* argument cuts our way harder than most: this game's look is a
+`SubViewport` plus a five-stage post-process chain, which is precisely where driver bugs surface.
+
+### D-20 — macOS joins v1.0
+
+Windows stays primary; macOS ships with it. This supersedes `Plan.md` §22.1 and promotes
+`M8-LCH-07` from optional to required. It is close to free — development happens on Apple
+Silicon, so that build is exercised daily — but it is not *actually* free, and the honest costs
+are: notarization is $99/yr, or ship unsigned and talk users through Gatekeeper; and Metal stops
+being a development convenience and becomes a shipping backend, so `M1-RND-07`'s two-backend
+verification is now protecting real players on both sides rather than de-risking one.
+
+**Left unresolved deliberately:** Steam Deck was in v1.0 per `Plan.md` §22.1. Three launch
+platforms is a lot for a first game. Not assumed either way — see open questions.
+
+### D-18 — the learning games are dropped, and what that actually costs
+
+The plan budgeted ~11 sessions for three throwaway games and argued hard against skipping them.
+That argument was written for a developer hand-writing the code. It is not this project.
+
+Accepted, with ~8 sessions saved. But the plan's reasoning was not *entirely* about typing
+practice, and the part that survives is worth stating plainly rather than quietly dropping:
+
+- `Milestones.md` §4.5 lists **feel** as undelegatable, and the **M1 gate** is literally "play it
+  for 10 minutes with no content — is moving around genuinely pleasurable?" No agent can answer
+  that.
+- The **M3 gate** is reading five strangers' reactions and deciding whether the hook works. That
+  gate can end the project.
+- §4.4 makes the developer the only reviewer of agent output. This very cycle is the argument
+  for it: the agent introduced a CI regression, and it was caught by review, not by the agent.
+
+None of that requires having built Pong. It requires being fluent in the editor and able to read
+a diff. So M0-LRN-01/02/03 are replaced by `M0-LRN-05`, a guided editor-literacy pass performed
+on the real project, and `M0-LRN-04` becomes a living log appended each session rather than a
+one-off write-up.
+
+### D-17 — public, deliberately
+
+Now a decision rather than an accident. The cost is real and should not be restated as a
+non-issue: `Plan.md` publishes the whole three-act story, all four endings, the secret ending's
+exact unlock conditions, and the Pixel reveal, before anyone plays it. Accepted, and it fits the
+§6 devlog-from-month-two stance. The follow-on obligation is to stop writing `Plan.md` as if it
+were an internal document.
+
+### Plan amendments made under §0.5
+
+`Milestones.md` §0.5 says Plan.md wins unless deliberately amended. These are the deliberate
+amendments: §22.1 platform matrix and recommendation, the v1.0 platform line, and §23.2
+notarization (all D-20); §23.1 VCS row (D-17); §18.2 driver pointer (D-19). In `Milestones.md`:
+the M0-LRN feature set, Gate M0, and the M0 session budget (D-18); Appendix A.3's driver row,
+M1-RND-07, and the divergence risk row (D-19); M8-LCH-01 and M8-LCH-07 (D-20).
 
 ---
 

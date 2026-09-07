@@ -247,10 +247,10 @@ Before merging any feature:
 
 ## M0 — Literacy & Foundations
 
-> **Weeks 1–3 · 23 sessions**
+> **Weeks 1–3 · 15 sessions** (was 23; −8 from D-18 dropping the throwaway learning games)
 > **Goal:** You can build, run, test, debug, and ship a Godot C# project on both machines, and you know the engine well enough that the real project isn't your teaching sandbox.
 
-**Do not skip this milestone.** Learning an engine on your actual project is the most common way first games die. Three weeks here buys back three months later.
+**Do not skip this milestone** — but note its literacy approach changed under **D-18**. The three throwaway learning games are gone; editor literacy is now acquired on the real project, guided. The infrastructure features (M0-ENV, M0-DBG) are unchanged and still gate everything after.
 
 ### Feature Set M0-ENV — Environment
 
@@ -269,12 +269,22 @@ Before merging any feature:
 
 | ID | Feature | Done when | Est. |
 |---|---|---|---|
-| M0-LRN-01 | Ship a complete 2D Pong | Start screen, win/lose, sound, exported build runs standalone | 2 |
-| M0-LRN-02 | Ship a complete top-down 3D arena shooter | One enemy type, aiming, health, win/lose, sound | 4 |
-| M0-LRN-03 | Ship a complete 3D platformer with follow camera | Jump feel tuned, moving platforms, a camera you wrote yourself | 4 |
-| M0-LRN-04 🔴 | Record the engine learnings | `docs/LEARNINGS.md` covers node lifecycle, signals, `_Process` vs `_PhysicsProcess`, resource loading, the C# struct-copy trap, export gotchas | 1 |
+**Restructured by decision D-18.** This set originally built three throwaway games — Pong, a top-down arena shooter, a 3D platformer — for ~11 sessions, on the reasoning that learning an engine on your real project is how first games die. That reasoning assumed a developer hand-writing the code. This project is AI-orchestrated, so hand-building Pong buys little that transfers. Dropped, saving ~8 sessions.
 
-Build these in a throwaway `~/dev/sandbox/` repo, **not** this one. **The artifact is your competence, not the code.** Delete them after.
+**What is deliberately not dropped.** The plan's argument was not purely about typing practice, and the surviving part is load-bearing:
+
+- §4.5 lists **feel** as undelegatable, and the **M1 gate** is *"play it for 10 minutes with no content — is moving around genuinely pleasurable?"* No agent can answer that for you.
+- The **M3 gate** is reading five strangers and deciding whether the hook works. It can end the project.
+- §4.4 makes you the only reviewer of agent output — and in the very cycle that produced this decision, the agent shipped a CI regression that only review caught.
+
+None of that needs Pong. It needs editor fluency and the ability to read a diff. Hence:
+
+| ID | Feature | Done when | Est. |
+|---|---|---|---|
+| M0-LRN-04 🔴 | Keep a living engine-learnings log | `docs/LEARNINGS.md` started now and appended **every session** a trap is hit — node lifecycle, signals, `_Process` vs `_PhysicsProcess`, resource loading, the C# struct-copy trap, export gotchas. A log, not a one-off write-up | 1 |
+| M0-LRN-05 🔴 | Complete a guided editor-literacy pass | Unaided in the Godot editor **on the real project**: build a node hierarchy, attach a C# script, expose an `[Export]` and tune it live while running, use the remote inspector on a running game, read the debugger and profiler panels, export a build. Agent writes the step-by-step; you drive the editor | 2 |
+
+The old sandbox instruction is void — there is no throwaway repo. `M0-LRN-05` happens in this project, and its artifacts are kept.
 
 ### Feature Set M0-DBG — Debug infrastructure
 
@@ -288,8 +298,8 @@ The debug menu is infrastructure, not a luxury. Every later milestone assumes yo
 ### 🚦 Gate M0
 
 - [ ] All 14 Appendix A checklist rows green
-- [ ] Three learning games finished and playable end to end
-- [ ] `docs/LEARNINGS.md` written
+- [ ] Guided editor-literacy pass complete (M0-LRN-05) — you can drive the Godot editor unaided
+- [ ] `docs/LEARNINGS.md` started and being appended
 - [ ] Debug menu working in an exported build
 - [ ] CI green, including the lowercase-path guard
 - [ ] **An exported build runs on the Windows target**
@@ -336,7 +346,7 @@ The debug menu is infrastructure, not a luxury. Every later milestone assumes yo
 | M1-RND-04 | Bloom the neon | Threshold-gated, low radius, does not wash out the palette | 1 |
 | M1-RND-05 🔴 | Render the UI at native resolution | Separate `CanvasLayer` above the viewport; text crisp at 1080p / 1440p / the Mac's 3456×2234 | 2 |
 | M1-RND-06 | Author the three sub-palettes | 2070 Sprawl, 1861 Calcutta, Sanguine Sight — each with a colourblind-safe variant | 2 |
-| M1-RND-07 🔴 | Verify the pipeline on both backends | Golden-image comparison per stage; post chain under 2 ms; **renders identically on Metal (Mac) and Vulkan/D3D12 (Windows)** | 2 |
+| M1-RND-07 🔴 | Verify the pipeline on both backends | Golden-image comparison per stage; post chain under 2 ms; **renders identically on Metal (macOS) and D3D12 (Windows)** — both are shipping backends under D-20. **Also profile Vulkan on Windows for comparison**, not just confirm D3D12 works: D3D12 has known slower startup and has trailed Vulkan in some scenes, so the fallback needs a real number behind it (D-19) | 2 |
 
 `M1-RND-07` is the feature that de-risks the Metal-vs-Vulkan divergence for the whole project. Do not defer it.
 
@@ -705,15 +715,15 @@ The most important gate in the project. A real decision point, not a formality.
 
 | ID | Feature | Done when | Est. |
 |---|---|---|---|
-| M8-LCH-01 🔴 | Ship the release build | Windows + Steam Deck; depot uploaded; exe metadata correct (export from the Windows target, or use Wine on macOS) | 3 |
+| M8-LCH-01 🔴 | Ship the release build | **Windows (primary) + macOS** per D-20, plus Steam Deck if it stays in scope; depot uploaded; exe metadata correct (export from the Windows target, or use Wine on macOS) | 3 |
 | M8-LCH-02 🔴 | Publish the EA roadmap | Public, honest, dated; matches Plan.md §24.3 | 2 |
 | M8-LCH-03 | Open the community channels | Discord, bug reporting, feedback intake | 2 |
 | M8-LCH-04 🔴 | Provide crash and telemetry reporting | Opt-in, privacy-respecting, actually actionable | 3 |
 | M8-LCH-05 | Prepare the hotfix pipeline | You can ship a fix within 24 h of a launch-blocking report | 2 |
 | M8-LCH-06 | Write the launch retrospective | In `Agent_History.md`: what the estimates got wrong and by how much | 2 |
-| M8-LCH-07 | *(optional)* Ship the macOS build | Apple Silicon build tested natively; either notarized ($99/yr Apple Developer) or shipped unsigned with clear Gatekeeper instructions | 2 |
+| M8-LCH-07 🔴 | Ship the macOS build | **Required by D-20 — no longer optional.** Apple Silicon build tested natively; either notarized ($99/yr Apple Developer) or shipped unsigned with clear Gatekeeper instructions. That signing choice is an open question and must be settled before M7, not at launch | 2 |
 
-**On M8-LCH-07:** Plan.md §22.1 put macOS at v1.1, but developing on an Apple Silicon Mac means you test that build daily for free and can validate the slice most Mac players actually run. Consider pulling it into v1.0. The only real cost is the notarization certificate, and shipping unsigned with instructions is a legitimate interim option.
+**On M8-LCH-07 — decided (D-20): macOS ships in v1.0.** Plan.md §22.1 had it at v1.1; that is superseded. Developing on Apple Silicon means the build is exercised daily for free, on the slice most Mac players actually run. Two consequences worth carrying forward rather than rediscovering at M7: Metal becomes a **shipping** backend, not a dev convenience, so `M1-RND-07`'s dual-backend verification now protects real players on both sides; and the notarization certificate stops being deferrable — either budget $99/yr or commit to shipping unsigned with Gatekeeper instructions, and decide which before M7.
 
 ---
 
@@ -745,7 +755,7 @@ Update at the end of every session.
 
 | Milestone | Features | Done | Sessions est. | Sessions actual | Status |
 |---|---|---|---|---|---|
-| M0 Literacy | 12 | 4 | 23 | ~4 | 🟨 In progress |
+| M0 Literacy | 10 | 4 | 15 | ~5 | 🟨 In progress |
 | M1 Feel | 21 | 0 | 35 | 0 | ⬜ |
 | M2 Predation | 14 | 0 | 42 | 0 | ⬜ |
 | M3 The Hook ⚠️ | 20 | 0 | 56 | 0 | ⬜ |
@@ -754,16 +764,16 @@ Update at the end of every session.
 | M6 The Story | 17 | 0 | 42 | 0 | ⬜ |
 | M7 Shipping | 8 | 0 | 28 | 0 | ⬜ |
 | M8 Launch | 7 | 0 | 16 | 0 | ⬜ |
-| **Total** | **141** | **4** | **340** | **~4** | |
+| **Total** | **139** | **4** | **332** | **~5** | |
 
 Sessions actual for M0 is approximate — sessions 002–004 mixed design authoring with
 environment work. Track it precisely from M1, where the velocity rescale depends on it.
 
-**Done:** M0-ENV-02, M0-ENV-03, M0-ENV-04, M0-ENV-05
+**Done:** M0-ENV-02, M0-ENV-03, M0-ENV-04, M0-ENV-05 — merged as `3f92697`, CI green
 **Active feature:** M0-ENV-01 — 13 of 14 Appendix A checklist rows green
 **Blocked on:** checklist row #9 (F5 debugger attach) — requires a manual F5 in VS Code
-**Next:** M0-ENV-06 (Windows verification target) → M0-LRN → M0-DBG-01
-**Last demo recorded:** _none_
+**Next:** M0-DBG-01 (debug menu — first real code feature, first demoable one) → M0-LRN-05 → M0-ENV-06
+**Last demo recorded:** _none_ — M0-ENV work is not filmable; M0-DBG-01 is the first feature with a demo artifact
 
 ---
 
@@ -792,7 +802,7 @@ Pre-agreed so the decision is unemotional when you're tired and behind. Cut **in
 | Scope creep | **High** | Severe | Feature Cards with explicit OUT lists; agent contract forbids unrequested work |
 | Solo burnout | **High** | Severe | Demoable increment every 1–3 sessions; Sunday no-code rule; devlog for external validation |
 | Velocity overrun | **Very high** | Moderate | Re-estimate monthly; cut list pre-agreed |
-| **Metal vs Vulkan/D3D12 divergence** | Medium | Severe | Develop on Metal, gate on Windows from M0-ENV-06; M1-RND-07 verifies the post chain on both backends; run gate builds on Windows every milestone |
+| **Metal vs D3D12 divergence** | Medium | **Severe → now unavoidable** | Both are *shipping* backends under D-20, so this stopped being a dev-vs-verify risk and became a two-platform correctness requirement. Develop on Metal, gate on Windows from M0-ENV-06; M1-RND-07 verifies the post chain on both and profiles Vulkan as the fallback; run gate builds on Windows every milestone |
 | **Over-budget because M4 Pro is too fast** | **High** | Moderate | All performance numbers measured on the Windows target, never on the Mac |
 | Godot 3D perf on open world | Medium | Severe | Chunk streaming + directors from M4; profile from M2, not M10 |
 | Pixel-3D illegibility | Medium | Severe | Golden-image tests; readability over aesthetic purity (Pillar 6) |
@@ -895,7 +905,7 @@ Then: `global.json` (pin .NET 8) → `dotnet new sln` + core + tests → `.gitat
 | Setting | Value |
 |---|---|
 | Rendering → Renderer | **Forward+** |
-| Rendering → Rendering Device → Driver | **macOS: leave default** (resolves to Metal). **Windows: `project.godot` explicitly pins `rendering_device/driver.windows="d3d12"`.** Godot does not write that key itself — verified by opening a bare project in 4.7.2 — so it is a deliberate override, not a default. Leaving it unset would give the Windows target Vulkan and silently break parity with the committed project. See the open question in `Agent_History.md` |
+| Rendering → Rendering Device → Driver | **macOS: leave default** (resolves to Metal). **Windows: keep the explicit pin `rendering_device/driver.windows="d3d12"` in `project.godot`** — decision **D-19**. D3D12 is Godot's own Windows default from 4.6 onward, because Windows Vulkan drivers are poorly maintained and have broken shipped Godot games. Do **not** "leave it default": the default changed once already between 4.5 and 4.6, so only an explicit pin is stable across engine versions |
 | Physics → 3D → Physics Engine | **Jolt Physics** |
 | **Application → Run → Main Scene** | **`res://scenes/main.tscn` — MUST be set.** Without it F5 builds successfully and then opens no window, with no error explaining why |
 | Version Control Metadata | None (git is configured separately) |
