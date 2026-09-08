@@ -35,6 +35,9 @@ is updated in place so there is always one place to look for the current answer.
 | D-18 | **Drop the three throwaway learning games. Acquire engine literacy on the real project, guided.** | The plan assumed hand-coding; this project is AI-orchestrated, so hand-building Pong teaches little that transfers. Saves ~8 sessions. **What is not dropped:** the M1 feel gate and the M3 playtest reading are subjective and explicitly undelegatable (§4.5), and §4.4 makes the developer the only reviewer of agent output. Replaced by a living `LEARNINGS.md` and a guided editor-literacy pass on the real project | 005 |
 | D-19 | **Windows renders through D3D12, explicitly pinned. Not "leave default".** | Reverses the session-004 assumption that Vulkan was the safer default. The Godot Foundation sponsored work to make **D3D12 the default Windows driver from 4.6** because Windows Vulkan GPU drivers are poorly maintained and have repeatedly broken shipped Godot games. Pinning explicitly also survives the default changing again between engine versions, which it already did once | 005 |
 | D-20 | **macOS ships in v1.0 alongside Windows. Windows is the primary target.** | Supersedes `Plan.md` §22.1, which had macOS at v1.1 and `M8-LCH-07` as optional. Development happens on Apple Silicon, so the macOS build is tested daily for free. Consequence: Metal is now a *shipping* backend rather than a dev convenience, which makes `M1-RND-07`'s dual-backend verification load-bearing, and notarization becomes a real budget question | 005 |
+| D-21 | **The time-of-day scrubber leaves M0-DBG-01 and lands with M4-SUN.** | There is no `GameClock` at M0, so a scrubber would scrub nothing. `Plan.md` Task 3 asked for one and its own demo line called it a *"(placeholder) clock"* — a placeholder requested by the constitution, which DoD #5 forbids outright. Deferring is the only option that neither ships a stub nor pulls M4-SUN's clock design forward before its sun-position requirements are known | 006 |
+| D-22 | **Demo clips live outside the repository, at `~/dev/raktabeej-assets/demos/`. `docs/demos/README.md` is the index.** | Amends DoD #7's path; the 10–30 s clip requirement itself is untouched. The repo is public (D-17), and LFS bandwidth is consumed by anyone fetching the objects against a 1 GB monthly allowance (D-12) — not controllable on a public repo. Decisively: it is **the only reversible choice**. Plain blobs and LFS objects are both awkward to remove from history, while adopting LFS later costs nothing to clean up | 006 |
+| D-23 | **M0-ENV-06 is sequenced ahead of M0-DBG-01, and ENV-06's last acceptance row is co-verified with DBG-01's DoD #10.** | The two features were mutually blocking: ENV-06 required a *"frame-time overlay readable there"* that only DBG-01 builds, while DBG-01's DoD #10, its release-exclusion check, and Gate M0's exported-build row all required ENV-06's export templates. Resolved by running ENV-06 first for everything verifiable against `Main.cs` alone, then closing its final row in the same act as DBG-01's Windows check. Neither feature is split or renumbered | 006 |
 
 ### Pinned toolchain
 
@@ -46,15 +49,21 @@ private until session 004. Unresolved; see the open questions below.
 ### Current position
 
 - **Active milestone:** M0 — Literacy & Foundations (**5 of 10** features done; was 12 before D-18)
-- **Active feature:** none. M0-DBG-01 is next; its Feature Card is written and awaiting approval
+- **Active feature:** M0-ENV-06 (Windows verification target), reordered ahead of M0-DBG-01 by **D-23**
 - **Blocked on:** nothing
 - **Done:** M0-ENV-01 (all **14 of 14** Appendix A rows — row #9, F5 debugger attach, confirmed by
   the developer in session 006), plus M0-ENV-02/03/04/05 — merged as `3f92697`, CI green
 - **Not started:** M0-ENV-06 (Windows verification target), M0-LRN-04/05, M0-DBG-01/02
-- **Next up:** M0-DBG-01 (debug menu) is the first real code feature, the first demoable one, and
-  the first subject to DoD #7 (a 10–30 s clip in `docs/demos/`)
+- **Next up:** M0-ENV-06, then M0-DBG-01 — the first real code feature, the first demoable one,
+  and the first subject to DoD #7. Its card is approved and lives at `docs/cards/m0-dbg-01.md`
 - **Resolved in session 005:** repo visibility (D-17), M0-LRN (D-18), Windows driver (D-19),
   macOS in v1.0 (D-20).
+- **Resolved in session 006:** M0-ENV-01 closed at 14/14; scrubber deferred (D-21), demo-clip
+  location (D-22), M0-ENV-06/M0-DBG-01 circular dependency (D-23).
+- **Tracked follow-up:** `.kiro/steering/product.md` still reads *"Ship target: Steam Early
+  Access, Windows + Steam Deck"*, which D-20 superseded. Left alone deliberately — it is
+  entangled with the open Steam Deck question below, and a half-correction to an always-loaded
+  steering file is worse than a known-stale one. Fix both together.
 - **Open question:** does **Steam Deck** stay a v1.0 launch platform? `Plan.md` §22.1 says yes,
   but with macOS promoted that makes three at launch. Decide before M6-ACC-04.
 - **Open question:** **notarize the macOS build ($99/yr) or ship unsigned** with Gatekeeper
@@ -64,6 +73,110 @@ private until session 004. Unresolved; see the open questions below.
   not bundled into M0 foundation work — it wants its own small change.
 - **Tracked follow-up:** `M1-RND-07` must **profile both D3D12 and Vulkan** on the Windows box,
   not merely confirm D3D12 renders. See D-19 for why.
+
+---
+
+## Session 006 — [DATE] — M0-ENV-01 closed; the first code feature carded, and it was mutually blocked
+
+### Goal
+Record the row #9 pass, prune the merged branches, and propose the M0-DBG-01 Feature Card.
+
+### Landed
+`7ae29ec` on `main`, CI green on both jobs. Row #9 — F5 debugger attach, breakpoint hit in
+`Main.cs` `_Ready()` — confirmed by the developer, which closes **M0-ENV-01 at 14 of 14** and
+clears the first 🔴 gate feature. M0 stands at 5 of 10.
+
+The tracking-board footer still claimed *"13 of 14"* and *"Blocked on: checklist row #9"*. Not
+in the brief, but leaving a known-false line in `Milestones.md` is the precise failure this
+project keeps paying for, so it went in the same change.
+
+**Branches pruned**, local and remote: `chore/m0-foundation-hardening` and
+`docs/m0-decisions-d17-d20`. The first was squash-merged, so git has no ancestry link and
+`git branch -d` refuses it — before forcing with `-D`, confirmed the content actually landed by
+checking `git diff fffc692 3f92697` was empty. `origin` now holds only `main`.
+
+### D-23 — the two next features were blocking each other
+
+Found while sequencing, not while coding, and it would have surfaced as a stuck gate:
+
+- `M0-ENV-06`'s acceptance list ends with *"frame-time overlay readable there"* — an overlay
+  that only `M0-DBG-01` builds.
+- `M0-DBG-01`'s DoD #10 (performance-touching work verified on Windows), its release-exclusion
+  check, and Gate M0's *"debug menu working in an exported build"* row all need the export
+  templates that `M0-ENV-06` installs.
+
+Each was a prerequisite of the other, and the plan's stated order (DBG-01 → LRN-05 → ENV-06)
+would have left the 🔴 gate feature unable to close on the milestone whose entire purpose is
+making later gates honest.
+
+Resolved by splitting the *verification*, not the features: ENV-06 runs first and lands
+everything provable against `Main.cs` and its liveness probe alone — templates, preset, an
+exported debug build launching on the Windows box. Its final row is then closed in the same act
+as DBG-01's Windows check. One session closes both, and neither feature is renumbered.
+
+Worth naming as a pattern: this is the third time a defect here was a **dependency between
+correct things** rather than a wrong thing. The CI trigger that matched no branch, the guard
+regex fed a changed input, and now two features each waiting on the other. Reading each artifact
+in isolation finds none of them.
+
+### D-21 — the constitution asked for a placeholder
+
+`Plan.md` Task 3 lists a time-of-day scrubber for the debug menu, and its own demo line reads
+*"scrub the **(placeholder)** clock"*. There is no `GameClock` until M4-SUN, so the scrubber
+would scrub nothing — the constitution was requesting, in its own words, the exact thing DoD #5
+forbids.
+
+Surfaced rather than resolved unilaterally, because a scope cut is the developer's call. Chosen:
+defer to M4-SUN. The alternative considered and rejected was shipping a stub clock under a
+recorded justification like the `GD.Print` probe — and it does not clear that bar. The probe is
+load-bearing: it is the only signal that the C# assembly loaded, and it was the breakpoint target
+for row #9. A stub clock is load-bearing for nothing, which is the whole distinction.
+
+Also amended in the same place: at M0 there is no gameplay camera to toggle *away from* —
+`main.tscn` is a bare `Node3D` with no camera and no environment, which is why session 003's grey
+viewport was correct. So the deliverable is a debug camera that exists and flies; toggling
+between cameras belongs to M1-CAM.
+
+### D-22 — the demo directory was a trap waiting on the next feature
+
+DoD #7 requires `docs/demos/<feature-id>.mp4`, and M0-DBG-01 is the first feature to produce
+one. **`.mp4` was not in the LFS patterns**, so that clip would have committed as a plain git
+blob — into a repo whose entire asset discipline (D-12) exists to keep binaries out of git, and
+whose history cannot be pruned without a rewrite the integrity rules forbid.
+
+Three options were put to the developer. The deciding argument was not size but **reversibility**:
+plain blobs and LFS objects are both awkward to remove after the fact, whereas keeping clips out
+means adopting LFS at any later point costs nothing to clean up. The public-repo angle reinforced
+it — LFS bandwidth is consumed by any third party cloning, against 1 GB/month, which is not
+controllable on a public repo.
+
+So clips live at `~/dev/raktabeej-assets/demos/` beside the other D-12 exclusions, and
+`docs/demos/README.md` is the index. The `.gitignore` rule is scoped to `/docs/demos/*` with a
+negation for the README rather than a global `*.mp4` — deliberately, because a global video
+pattern would silently swallow a future in-game video asset, which is the identical mistake
+`[Dd]ebug/` made in session 004 against `game/src/debug/`.
+
+**Verified rather than assumed.** `git check-ignore -v` was misleading here: it exits 0 on a
+negation match, so `docs/demos/README.md` *looked* ignored. Settled it by writing a dummy
+`.mp4` and running `git add -A --dry-run` — the clip was skipped and the README staged. Then
+deleted the dummy.
+
+Removed the now-redundant `docs/demos/.gitkeep`; the README keeps the directory, and the
+`.gitkeep` said *"Feature demo clips land here"*, which D-22 makes false.
+
+### Amendments made under §0.5
+
+`Plan.md` §25 Task 3 (D-21). `Milestones.md`: DoD #7 (D-22), the M0-DBG-01 row and the
+DBG-01/DBG-02 boundary (D-21), the M0-ENV-06 note (D-23), Gate M0's Appendix A row, the tracking
+board and its footer. `.kiro/steering/structure.md`: `docs/cards/`, `docs/demos/` as index-only,
+`LEARNINGS.md`, and the demo-clip line under Source Assets.
+
+### Noted, not fixed
+
+`.kiro/steering/product.md` still says *"Ship target: Steam Early Access, Windows + Steam Deck"*,
+which D-20 superseded when macOS joined v1.0. It is always-loaded steering, so the error
+propagates into every session — but it is entangled with the still-open Steam Deck question, and
+half-correcting an always-loaded file is worse than a known-stale one. Fix both together.
 
 ---
 

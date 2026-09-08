@@ -94,7 +94,7 @@ A feature is Done only when **all ten** are true. No partial credit.
 4. It is exercisable from the **debug menu** — you can set the state and trigger the effect on demand.
 5. No `TODO`, no `NotImplementedException`, no commented-out code, no stub returning a fixed value.
 6. Frame time still inside budget (Plan.md §21.8). Check the overlay, don't assume.
-7. A **demo artifact** exists: a 10–30 s clip in `docs/demos/<feature-id>.mp4`.
+7. A **demo artifact** exists: a 10–30 s clip at `~/dev/raktabeej-assets/demos/<feature-id>.mp4`, with a row added to the index in `docs/demos/README.md` **in the same commit**. Amended by **D-22** — the clip requirement is unchanged, only its location. Video never enters this repository: the repo is public, so LFS bandwidth would be consumed by any third party cloning it, against a 1 GB monthly allowance (D-12). Keeping clips out is also the only choice that stays reversible — plain blobs and LFS objects are both awkward to remove from history later, whereas adopting LFS at any point costs nothing to clean up.
 8. Committed on a feature branch, squashed to **1–2 commits**, merged to `main`, CI green.
 9. `Changes.md` has a one-line entry. Tracking board updated.
 10. **If the feature touches rendering, shaders, physics, or performance: verified running correctly on the Windows target**, not only on the Mac.
@@ -265,6 +265,8 @@ Before merging any feature:
 
 `M0-ENV-06` is what makes every later gate honest. Without it you will not discover a Metal-versus-Vulkan divergence until M7.
 
+**D-23 — the circular dependency in this row, and how it is resolved.** M0-ENV-06's last condition, *"frame-time overlay readable there"*, needs an overlay that only M0-DBG-01 builds. M0-DBG-01's DoD #10, its release-exclusion check, and Gate M0's exported-build row all need the export templates that M0-ENV-06 installs. Each feature blocks the other. Resolution: **M0-ENV-06 runs first and lands everything except that final row** — templates, preset, and an exported debug build launching on the Windows box, all verifiable today against `Main.cs` and its liveness probe alone. The overlay row is then **co-verified in the same act as M0-DBG-01's DoD #10 check**, closing both features honestly. Neither feature is split or renumbered; ENV-06 simply stays open across DBG-01 with exactly one row outstanding, and that row is named here so it cannot be quietly forgotten.
+
 ### Feature Set M0-LRN — Engine literacy
 
 | ID | Feature | Done when | Est. |
@@ -290,8 +292,12 @@ The old sandbox instruction is void — there is no throwaway repo. `M0-LRN-05` 
 
 | ID | Feature | Done when | Est. |
 |---|---|---|---|
-| M0-DBG-01 🔴 | Provide the debug menu and dev overlay | F1 panel with frame-time overlay, free-camera toggle, clock scrubber, extensible command registry; compiled out of release exports | 3 |
+| M0-DBG-01 🔴 | Provide the debug menu and dev overlay | F1 panel with a frame-time readout, a flyable debug camera, and an extensible command registry; compiled out of release exports. Card: `docs/cards/m0-dbg-01.md` | 3 |
 | M0-DBG-02 | Provide a frame-time and draw-call overlay | Live ms breakdown and draw-call count against Plan.md §21.8 budgets, readable on both machines | 1 |
+
+**Amended by D-21:** the time-of-day scrubber originally listed in M0-DBG-01 moves to M4-SUN. There is no `GameClock` at M0, and Plan.md Task 3's own demo line described it as a *"(placeholder) clock"* — which DoD #5 forbids. **The DBG-01/DBG-02 boundary, confirmed in session 006:** DBG-01 delivers frame milliseconds and fps; DBG-02 adds the per-stage breakdown and the draw-call count measured against §21.8, readable on both machines.
+
+**Sequenced behind M0-ENV-06 by D-23.** Three of this feature's closing conditions need the Windows target and its export templates — DoD #10, Gate M0's exported-build row, and the release-exclusion check.
 
 The debug menu is infrastructure, not a luxury. Every later milestone assumes you can force any state on demand. Build it now, grow it forever.
 
@@ -771,9 +777,9 @@ Sessions actual for M0 is approximate — sessions 002–004 mixed design author
 environment work. Track it precisely from M1, where the velocity rescale depends on it.
 
 **Done:** M0-ENV-01 (all 14 Appendix A rows green), M0-ENV-02, M0-ENV-03, M0-ENV-04, M0-ENV-05
-**Active feature:** none — M0-DBG-01 is next and its Feature Card is awaiting approval
+**Active feature:** M0-ENV-06 (Windows verification target) — reordered ahead of M0-DBG-01 by **D-23**
 **Blocked on:** nothing
-**Next:** M0-DBG-01 (debug menu — first real code feature, first demoable one) → M0-LRN-05 → M0-ENV-06
+**Next:** M0-ENV-06 → M0-DBG-01 (card approved, `docs/cards/m0-dbg-01.md`; closes ENV-06's last row on the way) → M0-LRN-05
 **Last demo recorded:** _none_ — M0-ENV work is not filmable; M0-DBG-01 is the first feature with a demo artifact
 
 ---

@@ -29,6 +29,13 @@ builds/
 *.kra
 raw_audio/
 
+# Demo clips — kept outside the repo by D-22; docs/demos/ holds only the text
+# index. Scoped to that one directory rather than a global *.mp4, so a future
+# in-game video asset cannot be silently swallowed — see the [Dd]ebug/ note above
+# for the same mistake made once already.
+/docs/demos/*
+!/docs/demos/README.md
+
 # macOS
 .DS_Store
 ._*

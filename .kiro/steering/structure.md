@@ -76,8 +76,11 @@ new file belongs; do not assume a path here is real. Check the filesystem first.
     │   ├── Plan.md            ← constitution
     │   ├── Milestones.md      ← schedule
     │   ├── TOOLCHAIN.md       ← pinned versions, naming convention
+    │   ├── LEARNINGS.md       ← living engine-trap log (M0-LRN-04)
     │   ├── ASSET_LICENSES.md
+    │   ├── cards/             ← one Feature Card per feature, m0-dbg-01.md
     │   └── demos/
+    │       └── README.md      ← index ONLY. Clips live in raktabeej-assets (D-22)
     └── .github/
         └── workflows/
             └── ci.yml
@@ -89,3 +92,7 @@ Source assets (.blend, .vox, raw .wav) live OUTSIDE this repository in:
     ~/dev/raktabeej-assets/
 
 Only exported, game-ready files are committed to this repository.
+
+**Demo clips go there too** — `~/dev/raktabeej-assets/demos/<feature-id>.mp4` (D-22).
+`docs/demos/README.md` is the text index and the only file in that directory. Video
+never enters this repo, in LFS or otherwise.

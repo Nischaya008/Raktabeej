@@ -9,6 +9,34 @@ Rationale lives in `Agent_History.md`. This file answers "what changed", not "wh
 
 ## Unreleased — M0 Literacy & Foundations
 
+### M0-DBG-01 carded; decisions D-21 to D-23 (session 006)
+
+- Added `docs/cards/m0-dbg-01.md` — the approved Feature Card for the debug menu, and the first
+  card written under §3. `docs/cards/` is a new home, now listed in `structure.md`
+- **D-21 — the time-of-day scrubber moves from M0-DBG-01 to M4-SUN.** There is no `GameClock` at
+  M0, and `Plan.md` Task 3's own demo line called it a *"(placeholder) clock"*, which DoD #5
+  forbids. `Plan.md` §25 Task 3 and the `Milestones.md` M0-DBG-01 row amended under §0.5. The
+  same amendment records that the "free-camera toggle" is a flyable debug camera at M0 —
+  `main.tscn` has no gameplay camera to toggle away from until M1-CAM
+- **D-22 — demo clips live outside the repo** at `~/dev/raktabeej-assets/demos/<feature-id>.mp4`.
+  `*.mp4` was never in the LFS patterns, so the first clip would have landed as a plain git blob.
+  DoD #7 amended: the clip requirement is unchanged, only its location, plus an index row
+- Added `docs/demos/README.md` as that index; deleted the redundant `docs/demos/.gitkeep`, whose
+  text ("Feature demo clips land here") D-22 makes false
+- `.gitignore`: `/docs/demos/*` with a `!README.md` negation. Scoped to that directory rather
+  than a global `*.mp4`, so a future in-game video asset cannot be silently swallowed — the same
+  mistake `[Dd]ebug/` made against `game/src/debug/` in session 004. Verified by writing a dummy
+  clip and running `git add -A --dry-run`, because `git check-ignore -v` exits 0 on a negation
+  and wrongly suggested the README was ignored
+- **D-23 — M0-ENV-06 is resequenced ahead of M0-DBG-01.** The two were mutually blocking:
+  ENV-06 required a frame-time overlay that only DBG-01 builds, while DBG-01's DoD #10,
+  release-exclusion check, and Gate M0's exported-build row all required ENV-06's export
+  templates. ENV-06 now lands everything provable against `Main.cs` alone, and its final row is
+  co-verified with DBG-01's Windows check. Neither feature split or renumbered
+- `.kiro/steering/structure.md`: added `docs/cards/`, `docs/LEARNINGS.md`, `docs/demos/README.md`
+  as index-only, and the demo-clip rule under Source Assets
+- `docs/Milestones.md`: tracking-board footer now shows M0-ENV-06 active and the revised order
+
 ### M0-ENV-01 closed at 14/14 (session 006)
 
 - **Verified by the developer:** checklist row #9 — F5 debugger attach, breakpoint hit in
@@ -148,6 +176,8 @@ Rationale lives in `Agent_History.md`. This file answers "what changed", not "wh
 - [ ] Steam Deck: still a v1.0 launch platform, or moved out? Decide before M6-ACC-04
 - [ ] macOS signing: notarize at $99/yr, or ship unsigned with Gatekeeper instructions? Before M7
 - [ ] `actions/checkout@v4` / `actions/setup-dotnet@v4` target the deprecated Node 20 — own change
+- [ ] `.kiro/steering/product.md` still says "Windows + Steam Deck", which **D-20** superseded.
+      Deliberately not half-corrected — bundle it with the Steam Deck decision above
 
 ---
 

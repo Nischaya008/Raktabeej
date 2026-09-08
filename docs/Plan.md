@@ -1493,10 +1493,11 @@ Install Godot 4.7.2 .NET, .NET 8 SDK, VS Code with C# Dev Kit, Blender, and Pixe
 *Tests:* You can perform each editor operation unaided, with no step-by-step open in front of you.
 *Demo:* Change an `[Export]` on a running game and watch it take effect live. You now know the tool.
 
-**Task 3: Build the debug menu and dev overlay**
-Create an in-game debug panel (toggle on `F1`) that will grow all game long: an FPS/frame-time overlay, a free-camera toggle, a time-of-day scrubber, and an empty extensible command list. Add a `DebugService` autoload that other systems register commands with.
-*Tests:* Panel opens/closes without affecting gameplay; frame-time overlay reads correctly; disabled in release export builds.
-*Demo:* Press F1 in a running build, scrub the (placeholder) clock, see live frame timings.
+**Task 3: Build the debug menu and dev overlay** *(amended by D-21)*
+Create an in-game debug panel (toggle on `F1`) that will grow all game long: an FPS/frame-time overlay, a flyable debug camera, and an empty extensible command list. Add a `DebugService` autoload that other systems register commands with.
+**Amended by D-21 — the time-of-day scrubber moves to M4-SUN.** There is no `GameClock` at M0, so a scrubber here would scrub nothing; this task's original demo line called it a *"(placeholder) clock"* in its own words, and DoD #5 forbids shipping placeholders. It arrives with the feature that gives it something to scrub. Also amended: at M0 there is no gameplay camera to toggle *away from* — `main.tscn` is a bare `Node3D` — so the deliverable is a debug camera that exists and flies. Toggling between gameplay and debug cameras belongs to M1-CAM.
+*Tests:* Panel opens/closes without affecting gameplay; frame-time overlay reads correctly under an artificial load, not merely displaying a number; absent from release export builds, proven by asserting the types are missing from a Release build of the game assembly.
+*Demo:* Press F1 in a running build, see live frame timings, fly the debug camera.
 
 ---
 
